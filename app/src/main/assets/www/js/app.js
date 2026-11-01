@@ -235,6 +235,8 @@
   function settingsDialog() {
     const S = OC.settings;
     const rows = [
+      ['music', 'Background music', [[true, 'On'], [false, 'Off']]],
+      ['volume', 'Music volume', [['low', 'Low'], ['medium', 'Medium'], ['high', 'High']]],
       ['style', 'Visual style', [['classic', 'Classic'], ['pixel', 'Pixel (8-bit)']]],
       ['back', 'Card back', [['blue', 'Blue'], ['red', 'Red'], ['green', 'Green'], ['purple', 'Purple'], ['black', 'Black']]],
       ['felt', 'Table colour', [['green', 'Green'], ['blue', 'Blue'], ['red', 'Red'], ['gray', 'Charcoal'], ['brown', 'Wood']]],
@@ -315,6 +317,8 @@
     $('#btn-stats').onclick = statsDialog;
     $('#btn-about').onclick = aboutDialog;
     $('#btn-home').onclick = goHome;
+    document.querySelectorAll('.music-btn').forEach((b) => (b.onclick = () => OC.music.toggle()));
+    OC.music.sync();
     let rt = null;
     window.addEventListener('resize', () => {
       clearTimeout(rt);

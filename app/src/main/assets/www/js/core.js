@@ -420,7 +420,7 @@
     reset() { store.set('stats', {}); },
   };
 
-  OC.settings = Object.assign({ style: 'classic', back: 'blue', felt: 'green', fourColor: false, autoFoundation: true, speed: 'normal' }, store.get('settings', {}));
+  OC.settings = Object.assign({ style: 'pixel', music: true, volume: 'medium', back: 'blue', felt: 'green', fourColor: false, autoFoundation: true, speed: 'normal' }, store.get('settings', {}));
   OC.applySettings = function () {
     const b = document.body;
     b.dataset.back = OC.settings.back;
@@ -435,6 +435,7 @@
     ['.##...##.', '####.####', '#########', '#########', '.#######.', '..#####..', '...###...', '....#....', '.........'], // hearts
     ['....#....', '...###...', '..#####..', '.#######.', '#########', '.#######.', '..#####..', '...###...', '....#....'], // diamonds
     ['...###...', '..#####..', '..#####..', '##.###.##', '#########', '#########', '##.#.#.##', '....#....', '...###...'], // clubs
+    ['...######', '...######', '...#....#', '...#....#', '...#....#', '.###..###', '####.####', '####.####', '.##...##.'], // music note
   ];
   (function installSprites() {
     const root = document.documentElement.style;
@@ -442,13 +443,17 @@
       let rects = '';
       rows.forEach((row, y) => [...row].forEach((ch, x) => { if (ch === '#') rects += `<rect x='${x}' y='${y}' width='1.02' height='1.02'/>`; }));
       const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9' shape-rendering='crispEdges'>${rects}</svg>`;
-      root.setProperty('--px-s' + s, `url("data:image/svg+xml,${encodeURIComponent(svg)}")`);
+      root.setProperty(s === 4 ? '--px-note' : '--px-s' + s, `url("data:image/svg+xml,${encodeURIComponent(svg)}")`);
     });
   })();
 
   OC.saveSettings = function () {
     store.set('settings', OC.settings);
     OC.applySettings();
+    if (OC.music) {
+      OC.music.sync();
+      OC.music.setVolume();
+    }
   };
   /** Delay multiplier for computer players */
   OC.pace = (ms) => ms * ({ fast: 0.45, normal: 1, slow: 1.7 }[OC.settings.speed] || 1);

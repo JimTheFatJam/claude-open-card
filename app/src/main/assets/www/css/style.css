@@ -369,3 +369,19 @@ table.stats th:first-child, table.stats td:first-child { text-align: left; }
 .paytable tr.win td { background: #c62828; color: #fff; }
 .hold-tag { display: inline-block; background: var(--gold); color: #222; font-weight: 800; padding: 2px 10px; border-radius: 6px; font-size: 14px; text-shadow: none; }
 .log-line { font-size: 14px; opacity: 0.95; }
+
+/* ---------- music toggle & logo ---------- */
+.music-btn { position: relative; }
+.ico-note {
+  display: inline-block; width: 18px; height: 18px; background: currentColor;
+  -webkit-mask: var(--px-note) center / contain no-repeat; mask: var(--px-note) center / contain no-repeat;
+}
+.btn.top .ico-note { width: 16px; height: 16px; }
+.music-btn.off .ico-note { opacity: 0.45; }
+.music-btn.off::after {
+  content: ''; position: absolute; left: 18%; right: 18%; top: 50%; height: 3px; margin-top: -1.5px;
+  background: #ff6b6b; transform: rotate(-45deg); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+.logo-pixel { display: none; width: 64px; height: 56px; image-rendering: pixelated; }
+body.pixel .logo-cards { display: none; }
+body.pixel .logo-pixel { display: block; }

@@ -16,7 +16,8 @@ Features:
 - **How to play** tutorials for every game, available from the menu or the **?** button in a game
 - Drag-and-drop or tap-to-move for solitaire games, plus unlimited **Undo** and **Hint**
 - Statistics per game (played, won, streaks)
-- Two visual styles: **Classic** and **Pixel (8-bit)**, with blocky cards, pixel-art suits and retro fonts
+- Two visual styles: **Pixel (8-bit)** (default), with blocky cards, pixel-art suits and retro fonts, and **Classic**
+- Original 8-bit background music, synthesised on the device. The ♪ button on every screen toggles it, and the volume is in Settings
 - Settings: card back, table colour, four-colour suits, solitaire auto-play, computer speed
 - Works fully offline
 
@@ -38,10 +39,12 @@ The pixel style uses the *Press Start 2P* and *VT323* fonts, both under the SIL 
 
 - `app/src/main/assets/www/` holds the whole game in plain HTML, CSS and JavaScript, with no build step.
   - `js/core.js` is the card model, table renderer, touch/drag input, dialogs, storage and poker hand evaluator.
+  - `js/music.js` is the chiptune background music (Web Audio pulse/triangle/noise channels).
   - `js/app.js` is the menu, game screen, settings, statistics and back-button handling.
   - `js/solitaire.js` is the shared undo/timer/hint base for the solitaire games.
   - `js/games/*.js` has one file per game, with its rules engine, computer AI and tutorial.
 - `app/src/main/java/com/opencard/app/MainActivity.java` is a small full-screen WebView wrapper.
+- `tools/make_icon.py` generates the pixel-art launcher icon and home-screen logo.
 - `.github/workflows/build-apk.yml` builds a signed APK on every push and publishes it as a GitHub Release.
 
 ### Try it in a browser

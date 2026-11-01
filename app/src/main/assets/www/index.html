@@ -11,10 +11,11 @@
   <div id="home-screen" class="screen active">
     <header class="home-head">
       <div class="logo">
-        <span class="logo-cards"><i>&#9824;</i><i class="r">&#9829;</i></span>
+        <span class="logo-cards"><i>&#9824;</i><i class="r">&#9829;</i></span><img class="logo-pixel" src="img/logo.svg" alt="">
         <div><h1>Open Card</h1><p>Classic card games with built-in tutorials</p></div>
       </div>
       <nav>
+        <button class="btn round music-btn" title="Music"><i class="ico-note"></i></button>
         <button class="btn" id="btn-stats">Statistics</button>
         <button class="btn" id="btn-settings">Settings</button>
         <button class="btn round" id="btn-about" title="About">i</button>
@@ -29,6 +30,7 @@
       <h1 id="game-title"></h1>
       <div id="game-status"></div>
       <div id="game-buttons"></div>
+      <button class="btn top round music-btn" title="Music"><i class="ico-note"></i></button>
     </header>
     <div id="board" class="board"></div>
     <div id="action-bar" class="empty"></div>
@@ -37,6 +39,7 @@
   <div id="toast"></div>
 
   <script src="js/core.js"></script>
+  <script src="js/music.js"></script>
   <script src="js/app.js"></script>
   <script src="js/solitaire.js"></script>
   <script src="js/games/klondike.js"></script>

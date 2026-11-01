@@ -125,6 +125,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
+        // Stop the background music while the app isn't visible.
+        webView.evaluateJavascript("window.OpenCard && OpenCard.music && OpenCard.music.appPaused(true)", null);
         webView.onPause();
     }
 
@@ -132,6 +134,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         webView.onResume();
+        webView.evaluateJavascript("window.OpenCard && OpenCard.music && OpenCard.music.appPaused(false)", null);
     }
 
     @Override
