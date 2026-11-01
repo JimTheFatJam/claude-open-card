@@ -109,12 +109,12 @@ button { font: inherit; color: inherit; }
   transition: background 0.15s;
 }
 .tile:hover { background: rgba(0, 0, 0, 0.3); }
-.tile-art { grid-row: 1 / 3; display: flex; align-items: center; --cw: 38px; --ch: 53px; }
-.tile-art .mini-row { position: relative; width: 96px; height: 64px; display: block; }
+.tile-art { grid-row: 1 / 3; display: flex; align-items: center; --mini-w: 50px; }
+.tile-art .mini-row { position: relative; width: 112px; height: 84px; display: block; }
 .tile-art .mini { position: absolute !important; margin: 0 !important; }
 .tile-art .mini:nth-child(1) { left: 0; top: 8px; transform: rotate(-14deg); }
-.tile-art .mini:nth-child(2) { left: 22px; top: 2px; transform: rotate(0deg); }
-.tile-art .mini:nth-child(3) { left: 44px; top: 8px; transform: rotate(14deg); }
+.tile-art .mini:nth-child(2) { left: 28px; top: 2px; transform: rotate(0deg); }
+.tile-art .mini:nth-child(3) { left: 56px; top: 8px; transform: rotate(14deg); }
 .tile-info h3 { margin: 0 0 3px; font-size: 18px; }
 .tile-info p { margin: 0; font-size: 13.5px; opacity: 0.8; line-height: 1.35; }
 .tile-meta { display: flex; gap: 10px; margin-top: 6px; font-size: 12px; opacity: 0.85; align-items: center; }
@@ -239,9 +239,16 @@ u.sy { text-decoration: none; }
 /* static mini cards in tutorials/menu */
 .mini-row { display: inline-flex; flex-wrap: wrap; gap: 4px; vertical-align: middle; margin: 2px 0; }
 .card.mini {
-  position: relative; display: inline-block; --cw: 46px; --ch: 64px;
-  width: var(--cw); height: var(--ch); transition: none; cursor: default; flex: none;
+  position: relative; display: inline-block; flex: none; cursor: default;
+  --cw: var(--mini-w, 46px); --ch: calc(var(--mini-w, 46px) * 1.4);
+  width: var(--cw); height: var(--ch); transition: none;
+  /* render exactly like table cards, whatever text styles surround them */
+  line-height: normal; font-size: 16px; font-weight: 400; letter-spacing: normal; text-align: left;
+  -webkit-user-select: none; user-select: none;
 }
+.modal-body .card b, .modal-body .card i, .tile .card b, .tile .card i { color: inherit; }
+.tut-body { --mini-w: 62px; }
+.opt-row { --mini-w: 50px; }
 .card.mini .inner { transition: none; }
 .card.mini .face, .card.mini .back, .card.mini .inner, .card.mini .corner, .card.mini .pips, .card.mini .court, .card.mini .ace { display: block; }
 .card.mini .corner, .card.mini .court { display: flex; }

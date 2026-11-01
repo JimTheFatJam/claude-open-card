@@ -156,7 +156,6 @@ body.pixel .card.glow .inner { box-shadow: 0 0 0 3px #69f0ae, 0 0 0 6px var(--px
 body.pixel .card.drag .inner { box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.4); }
 body.pixel .card.hint .inner { animation: pxHint 0.8s steps(2, end) 3; }
 @keyframes pxHint { 50% { box-shadow: 0 0 0 4px #69f0ae, 0 0 0 7px var(--px-edge); } }
-body.pixel .card.mini { --cw: 46px; }
 
 /* ---------- dialogs, chips, misc ---------- */
 body.pixel .modal-wrap { background: rgba(0, 0, 0, 0.6); animation: none; }

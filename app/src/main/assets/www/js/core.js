@@ -194,7 +194,15 @@
         clearTimeout(el._dt);
         el._dt = setTimeout(() => (el.style.transitionDelay = ''), delay + 400);
       }
-      if (moved) {
+      // Lift a card above the others only while it travels a real distance (dealing,
+      // moving between piles). Small nudges such as raising a selected card keep their
+      // normal stacking, so they don't pop in front and then drop back behind.
+      const far = !(Math.abs(x - el._x) + Math.abs(y - el._y) < this.cw * 0.6);
+      if (moved && !far) {
+        clearTimeout(el._zt);
+        el._zt = null;
+        el.style.zIndex = z;
+      } else if (moved) {
         el.style.zIndex = z + 500;
         clearTimeout(el._zt);
         el._zt = setTimeout(() => {
