@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 108x108 adaptive icon foreground: two fanned cards with a spade and a heart. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <group android:rotation="-12" android:pivotX="54" android:pivotY="54">
+        <path android:fillColor="#FFFFFF" android:strokeColor="#0A3A24" android:strokeWidth="1"
+            android:pathData="M36,30 h24 a4,4 0 0 1 4,4 v38 a4,4 0 0 1 -4,4 h-24 a4,4 0 0 1 -4,-4 v-38 a4,4 0 0 1 4,-4 z" />
+        <path android:fillColor="#1B1B1B"
+            android:pathData="M48,40 C44,46 39,49 39,54 C39,57.5 43,59.5 46.5,57 L45,63 L51,63 L49.5,57 C53,59.5 57,57.5 57,54 C57,49 52,46 48,40 Z" />
+    </group>
+    <group android:rotation="12" android:pivotX="54" android:pivotY="54">
+        <path android:fillColor="#FFFFFF" android:strokeColor="#0A3A24" android:strokeWidth="1"
+            android:pathData="M48,32 h24 a4,4 0 0 1 4,4 v38 a4,4 0 0 1 -4,4 h-24 a4,4 0 0 1 -4,-4 v-38 a4,4 0 0 1 4,-4 z" />
+        <path android:fillColor="#C62828"
+            android:pathData="M60,64 C54,58 51,54.5 51,51 C51,48 53.2,46 55.6,46 C57.6,46 59.2,47.2 60,48.8 C60.8,47.2 62.4,46 64.4,46 C66.8,46 69,48 69,51 C69,54.5 66,58 60,64 Z" />
+    </group>
+</vector>

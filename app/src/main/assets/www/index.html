@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Open Card</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="home-screen" class="screen active">
+    <header class="home-head">
+      <div class="logo">
+        <span class="logo-cards"><i>&#9824;</i><i class="r">&#9829;</i></span>
+        <div><h1>Open Card</h1><p>Classic card games with built-in tutorials</p></div>
+      </div>
+      <nav>
+        <button class="btn" id="btn-stats">Statistics</button>
+        <button class="btn" id="btn-settings">Settings</button>
+        <button class="btn round" id="btn-about" title="About">i</button>
+      </nav>
+    </header>
+    <main id="game-list"></main>
+  </div>
+
+  <div id="game-screen" class="screen">
+    <header class="game-head">
+      <button class="btn top round" id="btn-home" title="Back to menu">&#8592;</button>
+      <h1 id="game-title"></h1>
+      <div id="game-status"></div>
+      <div id="game-buttons"></div>
+    </header>
+    <div id="board" class="board"></div>
+    <div id="action-bar" class="empty"></div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script src="js/core.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/solitaire.js"></script>
+  <script src="js/games/klondike.js"></script>
+  <script src="js/games/freecell.js"></script>
+  <script src="js/games/spider.js"></script>
+  <script src="js/games/pyramid.js"></script>
+  <script src="js/games/golf.js"></script>
+  <script src="js/games/blackjack.js"></script>
+  <script src="js/games/videopoker.js"></script>
+  <script src="js/games/holdem.js"></script>
+  <script src="js/games/crazyeights.js"></script>
+  <script src="js/games/gofish.js"></script>
+  <script src="js/games/hearts.js"></script>
+  <script src="js/games/war.js"></script>
+</body>
+</html>

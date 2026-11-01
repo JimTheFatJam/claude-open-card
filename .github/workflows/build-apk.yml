@@ -1,0 +1,77 @@
+name: Build APK
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Keep the same signing key between builds so new versions install over old
+      # ones. Uses repository secrets when configured; otherwise generates a key
+      # once and keeps it in the Actions cache. The key is never committed.
+      - name: Restore signing key
+        uses: actions/cache@v4
+        with:
+          path: app/ci-signing
+          key: opencard-signing-v1
+
+      - name: Prepare signing config
+        env:
+          KEYSTORE_B64: ${{ secrets.OPENCARD_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.OPENCARD_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.OPENCARD_KEY_ALIAS }}
+        run: |
+          mkdir -p app/ci-signing
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > app/ci-signing/secret.jks
+            STORE=ci-signing/secret.jks; PASS="$KEYSTORE_PASSWORD"; ALIAS="${KEY_ALIAS:-opencard}"
+          else
+            if [ ! -f app/ci-signing/release.jks ]; then
+              openssl rand -hex 24 > app/ci-signing/pass
+              keytool -genkeypair -keystore app/ci-signing/release.jks -alias opencard \
+                -keyalg RSA -keysize 2048 -validity 36500 \
+                -storepass "$(cat app/ci-signing/pass)" -keypass "$(cat app/ci-signing/pass)" \
+                -dname "CN=Open Card, O=Open Card"
+            fi
+            STORE=ci-signing/release.jks; PASS="$(cat app/ci-signing/pass)"; ALIAS=opencard
+          fi
+          printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' "$STORE" "$PASS" "$ALIAS" "$PASS" > app/keystore.properties
+
+      - name: Build signed release APK
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease -PversionCode=${{ github.run_number }}
+          cp app/build/outputs/apk/release/app-release.apk OpenCard.apk
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenCard-apk
+          path: OpenCard.apk
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v1.0.${{ github.run_number }}"
+          gh release create "$TAG" OpenCard.apk \
+            --target "${{ github.sha }}" \
+            --title "Open Card $TAG" \
+            --notes "Tap **OpenCard.apk** below to download, then open it on your Android device to install. Built from commit ${{ github.sha }}." \
+            --latest
