@@ -88,7 +88,7 @@
   };
 
   function faceHTML(r, s) {
-    const sym = OC.SUITS[s].sym;
+    const sym = `<u class="sy">${OC.SUITS[s].sym}</u>`;
     const rk = OC.RANKS[r];
     let center;
     if (r === 1) {
@@ -167,6 +167,11 @@
       return [el, fresh];
     }
     _place(el, x, y, z, fresh, from, delay) {
+      if (el._dragging) {
+        // Never move or re-stack a card the player is holding; just remember its home.
+        el._z = z;
+        return;
+      }
       x = Math.round(x);
       y = Math.round(y);
       if (fresh) {
@@ -294,6 +299,11 @@
       if (!t || !board.contains(t) || t.dataset.pile === '') return null;
       return t;
     };
+    const release = (el) => {
+      el._dragging = false;
+      el.classList.remove('drag');
+      el._x = NaN; // force re-place (and keep it on top while it flies home)
+    };
     const down = (e) => {
       if (st || (e.button !== undefined && e.button > 0)) return;
       const t = findTarget(e);
@@ -313,9 +323,15 @@
         if (!cards || !cards.length) { st.nodrag = true; return; }
         st.drag = cards.map((c, i) => {
           const el = table.elOf(c);
+          clearTimeout(el._zt);
+          el._zt = null;
+          el._dragging = true;
           el.classList.add('drag');
-          el.style.zIndex = 3000 + i;
-          return { el, x: el._x, y: el._y };
+          el.style.setProperty('--dz', i);
+          el.style.zIndex = 5000 + i;
+          // start from where the card is drawn right now (it may still be animating)
+          const m = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/.exec(el.style.transform);
+          return { el, x: m ? +m[1] : el._x, y: m ? +m[2] : el._y };
         });
       }
       for (const d of st.drag) d.el.style.transform = `translate(${d.x + dx}px,${d.y + dy}px)`;
@@ -338,10 +354,7 @@
           const alt = probe(r.left + r.width / 2, r.top + r.height / 2);
           if (alt) dest = alt;
         }
-        for (const d of s.drag) {
-          d.el.classList.remove('drag');
-          d.el._x = NaN; // force re-place
-        }
+        for (const d of s.drag) release(d.el);
         const ok = dest && dest !== s.pile && h.onDrop && h.onDrop(s.pile, s.idx, dest);
         if (!ok && h.onDragCancel) h.onDragCancel();
       } else if (!s.nodrag || Math.hypot(e.clientX - s.x, e.clientY - s.y) < 14) {
@@ -351,7 +364,7 @@
     const cancel = (e) => {
       if (!st || e.pointerId !== st.id) return;
       if (st.drag) {
-        for (const d of st.drag) { d.el.classList.remove('drag'); d.el._x = NaN; }
+        for (const d of st.drag) release(d.el);
         if (h.onDragCancel) h.onDragCancel();
       }
       st = null;
@@ -407,14 +420,32 @@
     reset() { store.set('stats', {}); },
   };
 
-  OC.settings = Object.assign({ back: 'blue', felt: 'green', fourColor: false, autoFoundation: true, speed: 'normal' }, store.get('settings', {}));
+  OC.settings = Object.assign({ style: 'classic', back: 'blue', felt: 'green', fourColor: false, autoFoundation: true, speed: 'normal' }, store.get('settings', {}));
   OC.applySettings = function () {
     const b = document.body;
     b.dataset.back = OC.settings.back;
     b.dataset.felt = OC.settings.felt;
     b.classList.toggle('four-color', !!OC.settings.fourColor);
     b.dataset.speed = OC.settings.speed;
+    b.classList.toggle('pixel', OC.settings.style === 'pixel');
   };
+  /* 9x9 pixel-art suit sprites for the pixel style (used as CSS masks) */
+  const SPRITES = [
+    ['....#....', '...###...', '..#####..', '.#######.', '#########', '#########', '.##.#.##.', '....#....', '...###...'], // spades
+    ['.##...##.', '####.####', '#########', '#########', '.#######.', '..#####..', '...###...', '....#....', '.........'], // hearts
+    ['....#....', '...###...', '..#####..', '.#######.', '#########', '.#######.', '..#####..', '...###...', '....#....'], // diamonds
+    ['...###...', '..#####..', '..#####..', '##.###.##', '#########', '#########', '##.#.#.##', '....#....', '...###...'], // clubs
+  ];
+  (function installSprites() {
+    const root = document.documentElement.style;
+    SPRITES.forEach((rows, s) => {
+      let rects = '';
+      rows.forEach((row, y) => [...row].forEach((ch, x) => { if (ch === '#') rects += `<rect x='${x}' y='${y}' width='1.02' height='1.02'/>`; }));
+      const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9' shape-rendering='crispEdges'>${rects}</svg>`;
+      root.setProperty('--px-s' + s, `url("data:image/svg+xml,${encodeURIComponent(svg)}")`);
+    });
+  })();
+
   OC.saveSettings = function () {
     store.set('settings', OC.settings);
     OC.applySettings();

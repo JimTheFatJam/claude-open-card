@@ -218,7 +218,8 @@ body.four-color .card.s3 .face { color: var(--green); }
 .court i { font-style: normal; font-size: calc(var(--cw) * 0.26); line-height: 1; }
 
 .card.notrans, .card.notrans .inner { transition: none !important; }
-.card.drag { transition: none !important; pointer-events: none; }
+.card.drag { transition: none !important; pointer-events: none; z-index: calc(5000 + var(--dz, 0)) !important; }
+u.sy { text-decoration: none; }
 .card.drag .inner { box-shadow: 0 10px 22px rgba(0, 0, 0, 0.55); }
 .card.sel .inner { box-shadow: 0 0 0 3px var(--gold), 0 0 14px 2px var(--gold); }
 .card.glow .inner { box-shadow: 0 0 0 3px #69f0ae, 0 0 14px 2px #69f0ae; }

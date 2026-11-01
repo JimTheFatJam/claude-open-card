@@ -235,6 +235,7 @@
   function settingsDialog() {
     const S = OC.settings;
     const rows = [
+      ['style', 'Visual style', [['classic', 'Classic'], ['pixel', 'Pixel (8-bit)']]],
       ['back', 'Card back', [['blue', 'Blue'], ['red', 'Red'], ['green', 'Green'], ['purple', 'Purple'], ['black', 'Black']]],
       ['felt', 'Table colour', [['green', 'Green'], ['blue', 'Blue'], ['red', 'Red'], ['gray', 'Charcoal'], ['brown', 'Wood']]],
       ['fourColor', 'Suit colours', [[false, 'Two colours'], [true, 'Four colours']]],

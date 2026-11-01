@@ -16,6 +16,7 @@ Features:
 - **How to play** tutorials for every game, available from the menu or the **?** button in a game
 - Drag-and-drop or tap-to-move for solitaire games, plus unlimited **Undo** and **Hint**
 - Statistics per game (played, won, streaks)
+- Two visual styles: **Classic** and **Pixel (8-bit)**, with blocky cards, pixel-art suits and retro fonts
 - Settings: card back, table colour, four-colour suits, solitaire auto-play, computer speed
 - Works fully offline
 
@@ -28,6 +29,10 @@ Features:
 4. Tap **Install**, then open **Open Card**.
 
 New versions install over the old one, and your statistics are kept.
+
+## Credits
+
+The pixel style uses the *Press Start 2P* and *VT323* fonts, both under the SIL Open Font License (see `app/src/main/assets/www/fonts/`).
 
 ## How it's built
 
