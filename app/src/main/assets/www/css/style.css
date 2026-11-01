@@ -204,6 +204,7 @@ body.four-color .card.s3 .face { color: var(--green); }
 .corner b { font-size: calc(var(--cw) * 0.23); font-weight: 700; letter-spacing: -0.07em; font-family: 'Roboto Condensed', system-ui, sans-serif; }
 .corner i { font-style: normal; font-size: calc(var(--cw) * 0.2); }
 .pips { position: absolute; left: 30%; right: 30%; top: 17%; bottom: 17%; }
+.corner b.ten { font-size: calc(var(--cw) * 0.21); letter-spacing: -0.12em; }
 .pips span { position: absolute; transform: translate(-50%, -50%); font-size: calc(var(--cw) * 0.2); line-height: 1; }
 .pips span.flip { transform: translate(-50%, -50%) rotate(180deg); }
 .ace { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: calc(var(--cw) * 0.55); }
@@ -374,14 +375,20 @@ table.stats th:first-child, table.stats td:first-child { text-align: left; }
 .music-btn { position: relative; }
 .ico-note {
   display: inline-block; width: 18px; height: 18px; background: currentColor;
-  -webkit-mask: var(--px-note) center / contain no-repeat; mask: var(--px-note) center / contain no-repeat;
+  -webkit-mask: var(--ic-note) center / contain no-repeat; mask: var(--ic-note) center / contain no-repeat;
 }
 .btn.top .ico-note { width: 16px; height: 16px; }
-.music-btn.off .ico-note { opacity: 0.45; }
+.music-btn.off .ico-note { opacity: 0.55; -webkit-mask-image: var(--ic-note-off); mask-image: var(--ic-note-off); }
 .music-btn.off::after {
-  content: ''; position: absolute; left: 18%; right: 18%; top: 50%; height: 3px; margin-top: -1.5px;
-  background: #ff6b6b; transform: rotate(-45deg); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+  content: ''; position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px;
+  background: #ff5a5a;
+  -webkit-mask: var(--ic-slash) center / contain no-repeat; mask: var(--ic-slash) center / contain no-repeat;
 }
+.btn.top.music-btn.off::after { width: 20px; height: 20px; margin: -10px 0 0 -10px; }
+body.pixel .ico-note { -webkit-mask-image: var(--px-note); mask-image: var(--px-note); }
+body.pixel .music-btn.off .ico-note { opacity: 0.65; -webkit-mask-image: var(--px-note-off); mask-image: var(--px-note-off); }
+body.pixel .music-btn.off::after { width: 18px; height: 18px; margin: -9px 0 0 -9px; -webkit-mask-image: var(--px-slash); mask-image: var(--px-slash); }
+body.pixel .btn.top.music-btn.off::after { width: 16px; height: 16px; margin: -8px 0 0 -8px; }
 .logo-pixel { display: none; width: 64px; height: 56px; image-rendering: pixelated; }
 body.pixel .logo-cards { display: none; }
 body.pixel .logo-pixel { display: block; }

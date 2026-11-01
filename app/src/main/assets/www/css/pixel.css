@@ -118,12 +118,14 @@ body.pixel .card .back {
   box-shadow: inset 0 0 0 2px var(--px-edge), inset 0 0 0 calc(var(--cw) * 0.07) #f1f1ea, inset 0 0 0 calc(var(--cw) * 0.07 + 2px) var(--px-edge), 3px 3px 0 rgba(0, 0, 0, 0.35);
 }
 body.pixel .card .back::after { inset: 30%; border: 0; background: var(--back-b); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.5); }
-body.pixel .corner.tl { left: 6%; top: 5%; }
-body.pixel .corner.br { right: 6%; bottom: 5%; }
+body.pixel .corner.tl { left: 5%; top: 5%; }
+body.pixel .corner.br { right: 5%; bottom: 5%; }
 body.pixel .corner { line-height: 1.1; width: auto; }
 body.pixel .corner b { font-family: var(--px-font); font-weight: 400; font-size: calc(var(--cw) * 0.15); letter-spacing: -0.12em; }
 body.pixel .corner i { font-size: calc(var(--cw) * 0.15); margin-top: 2px; }
 body.pixel .pips span { font-size: calc(var(--cw) * 0.17); }
+body.pixel .pips { left: 34%; right: 34%; }
+body.pixel .corner b.ten { font-size: calc(var(--cw) * 0.115); letter-spacing: -0.22em; }
 body.pixel .ace { font-size: calc(var(--cw) * 0.42); }
 body.pixel .card.s0 .ace { font-size: calc(var(--cw) * 0.48); }
 body.pixel .court {

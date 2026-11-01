@@ -99,7 +99,8 @@
       center = '<div class="pips">' + PIPS[r].map(([x, y]) =>
         `<span style="left:${x}%;top:${y}%"${y > 50 ? ' class="flip"' : ''}>${sym}</span>`).join('') + '</div>';
     }
-    return `<div class="corner tl"><b>${rk}</b><i>${sym}</i></div>${center}<div class="corner br"><b>${rk}</b><i>${sym}</i></div>`;
+    const b = r === 10 ? '<b class="ten">10</b>' : `<b>${rk}</b>`;
+    return `<div class="corner tl">${b}<i>${sym}</i></div>${center}<div class="corner br">${b}<i>${sym}</i></div>`;
   }
 
   function makeCardEl(c) {
@@ -445,6 +446,25 @@
       const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9' shape-rendering='crispEdges'>${rects}</svg>`;
       root.setProperty(s === 4 ? '--px-note' : '--px-s' + s, `url("data:image/svg+xml,${encodeURIComponent(svg)}")`);
     });
+    const url = (svg) => `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+    const pixelSvg = (on) => {
+      let rects = '';
+      for (let y = 0; y < 9; y++) for (let x = 0; x < 9; x++) if (on(x, y)) rects += `<rect x='${x}' y='${y}' width='1.02' height='1.02'/>`;
+      return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9' shape-rendering='crispEdges'>${rects}</svg>`;
+    };
+    // Pixel music icons: muted note has a gap cut where the 2px pixel slash crosses it.
+    const note = SPRITES[4];
+    root.setProperty('--px-note-off', url(pixelSvg((x, y) => note[y][x] === '#' && (x - y < -1 || x - y > 2))));
+    root.setProperty('--px-slash', url(pixelSvg((x, y) => x - y === 0 || x - y === 1)));
+    // Smooth music icons for the classic style.
+    const noteShape = "<path d='M8 5.2 20 2.5V6.2L8 8.9Z'/><rect x='8' y='5.5' width='2' height='12'/><rect x='18' y='3' width='2' height='12'/>" +
+      "<ellipse cx='6.6' cy='17.6' rx='3.6' ry='2.8'/><ellipse cx='16.6' cy='15.1' rx='3.6' ry='2.8'/>";
+    const smooth = (inner) => `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>${inner}</svg>`;
+    root.setProperty('--ic-note', url(smooth(noteShape)));
+    root.setProperty('--ic-note-off', url(smooth(
+      "<defs><mask id='m'><rect width='24' height='24' fill='white'/><line x1='2' y1='2' x2='22' y2='22' stroke='black' stroke-width='5.5'/></mask></defs>" +
+      `<g mask='url(%23m)'>${noteShape}</g>`)));
+    root.setProperty('--ic-slash', url(smooth("<line x1='3' y1='3' x2='21' y2='21' stroke='black' stroke-width='2.6' stroke-linecap='round'/>")));
   })();
 
   OC.saveSettings = function () {
