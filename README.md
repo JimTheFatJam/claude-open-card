@@ -17,7 +17,7 @@ Features:
 - **How to play** tutorials for every game, available from the menu or the **?** button in a game
 - Drag-and-drop or tap-to-move for solitaire games, plus unlimited **Undo** and **Hint**
 - Statistics per game (played, won, streaks)
-- Two visual styles: **Pixel (8-bit)** (default), with blocky cards, pixel-art suits and retro fonts, and **Classic**
+- Pixel (8-bit) look throughout: blocky cards, pixel-art suits and retro fonts
 - Original 8-bit background music, synthesised on the device. The ♪ button on every screen toggles it, and the volume is in Settings
 - Settings: card back, table colour, four-colour suits, solitaire auto-play, computer speed
 - Works fully offline

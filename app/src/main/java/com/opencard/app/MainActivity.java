@@ -48,6 +48,8 @@ public class MainActivity extends Activity {
         s.setSupportZoom(false);
         s.setBuiltInZoomControls(false);
         s.setTextZoom(100);                    // ignore system font scaling so card layouts fit
+        s.setMinimumFontSize(1);               // WebView's default 8px minimum would enlarge small card indexes
+        s.setMinimumLogicalFontSize(1);
 
         webView.setWebChromeClient(new WebChromeClient());
         webView.setWebViewClient(new WebViewClient() {

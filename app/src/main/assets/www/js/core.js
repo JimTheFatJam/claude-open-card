@@ -126,7 +126,8 @@
     return '<span class="mini-row">' + list.split(/\s+/).filter(Boolean).map((t) => {
       const c = OC.parseCard(t);
       const red = c.s === 1 || c.s === 2;
-      return `<span class="card mini s${c.s}${red ? ' red' : ''}${c.up ? ' up' : ''} ${extra}"><span class="inner"><span class="face">${faceHTML(c.r, c.s)}</span><span class="back"></span></span></span>`;
+      // Drawn at full table size, then shrunk as a whole (see .mini-wrap) so it looks exactly like a game card.
+      return `<span class="mini-wrap"><span class="card mini s${c.s}${red ? ' red' : ''}${c.up ? ' up' : ''} ${extra}"><span class="inner"><span class="face">${faceHTML(c.r, c.s)}</span><span class="back"></span></span></span></span>`;
     }).join('') + '</span>';
   };
 
@@ -429,14 +430,14 @@
     reset() { store.set('stats', {}); },
   };
 
-  OC.settings = Object.assign({ style: 'pixel', music: true, volume: 'medium', back: 'blue', felt: 'green', fourColor: false, autoFoundation: true, speed: 'normal' }, store.get('settings', {}));
+  OC.settings = Object.assign({ music: true, volume: 'medium', back: 'blue', felt: 'green', fourColor: false, autoFoundation: true, speed: 'normal' }, store.get('settings', {}));
   OC.applySettings = function () {
     const b = document.body;
     b.dataset.back = OC.settings.back;
     b.dataset.felt = OC.settings.felt;
     b.classList.toggle('four-color', !!OC.settings.fourColor);
     b.dataset.speed = OC.settings.speed;
-    b.classList.toggle('pixel', OC.settings.style === 'pixel');
+    b.classList.add('pixel'); // the pixel (8-bit) look is the app's only style
   };
   /* 9x9 pixel-art suit sprites for the pixel style (used as CSS masks) */
   const SPRITES = [
