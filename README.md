@@ -11,6 +11,7 @@ A free, offline collection of classic card games played with a standard 52-card 
 | Spider (1, 2 or 4 suits) | | Crazy Eights (1–3 opponents) |
 | Pyramid | | Go Fish (1–3 opponents) |
 | Golf | | War |
+| | | Tong-its (you + 2 players) |
 
 Features:
 - **How to play** tutorials for every game, available from the menu or the **?** button in a game
