@@ -10,7 +10,10 @@ import java.util.regex.Pattern;
  * Plain Java (no Android types) so it can be unit-tested on the JVM.
  */
 public final class Version implements Comparable<Version> {
-    private static final Pattern NUMBERS = Pattern.compile("(\\d+(?:\\.\\d+)*)");
+    /** A dotted number such as 1.0 or 1.0.16 (needs at least one dot). */
+    private static final Pattern DOTTED = Pattern.compile("\\d+(?:\\.\\d+)+");
+    /** A whole tag that is just a number, optionally with a leading v: "3", "v3". */
+    private static final Pattern BARE = Pattern.compile("^\\s*[vV]?(\\d+)\\s*$");
     private final int[] parts;
     private final String text;
 
@@ -19,12 +22,29 @@ public final class Version implements Comparable<Version> {
         this.text = text;
     }
 
-    /** Parses the first dotted number in the text ("v1.2.3", "Open Card 1.2.3"). Returns null if none. */
+    /**
+     * Parses a version from a tag or title: the first dotted number that starts a word
+     * ("v1.2.3", "Open Card 1.2.3", "release-2.1"), or a tag that is only a number ("v3").
+     * Digits inside words (like the 2 in "e2e") are ignored. Returns null if there is no version.
+     */
     public static Version parse(String s) {
         if (s == null) return null;
-        Matcher m = NUMBERS.matcher(s);
-        if (!m.find()) return null;
-        String[] bits = m.group(1).split("\\.");
+        String found = null;
+        Matcher m = DOTTED.matcher(s);
+        while (m.find()) {
+            int i = m.start();
+            if (i > 0 && (s.charAt(i - 1) == 'v' || s.charAt(i - 1) == 'V')) i--; // allow a "v" prefix
+            if (i == 0 || !Character.isLetterOrDigit(s.charAt(i - 1))) {
+                found = m.group();
+                break;
+            }
+        }
+        if (found == null) {
+            Matcher b = BARE.matcher(s);
+            if (!b.matches()) return null;
+            found = b.group(1);
+        }
+        String[] bits = found.split("\\.");
         List<Integer> nums = new ArrayList<>();
         for (String b : bits) {
             try {
@@ -35,7 +55,7 @@ public final class Version implements Comparable<Version> {
         }
         int[] out = new int[nums.size()];
         for (int i = 0; i < out.length; i++) out[i] = nums.get(i);
-        return new Version(out, m.group(1));
+        return new Version(out, found);
     }
 
     @Override

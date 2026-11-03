@@ -24,6 +24,23 @@ public class VersionAndChecksumTest {
     }
 
     @Test
+    public void readsVersionsFromTagsAndTitles() {
+        assertEquals("1.0.16", Version.parse("v1.0.16").toString());
+        assertEquals("2.1", Version.parse("release-2.1").toString());
+        assertEquals("2.0.1", Version.parse("Version 2.0.1").toString());
+        assertEquals("1.0.2", Version.parse("Automated updater test 1.0.2 (good)").toString());
+        assertEquals("3", Version.parse("v3").toString());
+        assertEquals("3", Version.parse("3").toString());
+    }
+
+    @Test
+    public void ignoresDigitsInsideWords() {
+        assertNull(Version.parse("e2e-updater-good"));
+        assertNull(Version.parse("build42"));
+        assertNull(Version.parse("x1.2"));
+    }
+
+    @Test
     public void rejectsTextWithoutAVersion() {
         assertNull(Version.parse(null));
         assertNull(Version.parse("latest"));

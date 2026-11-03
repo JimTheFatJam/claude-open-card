@@ -70,20 +70,20 @@ jobs:
       - name: Publish temporary test pre-releases
         run: |
           set -e
-          publish() { # tag apk checksum-file
+          publish() { # tag apk checksum-file version
             gh release delete "$1" --cleanup-tag -y >/dev/null 2>&1 || true
             mkdir -p "rel-$1" && cp "$2" "rel-$1/$ASSET" && cp "$3" "rel-$1/$ASSET.sha256"
             gh release create "$1" "rel-$1/$ASSET" "rel-$1/$ASSET.sha256" --prerelease --latest=false \
-              --target "${{ github.sha }}" --title "Automated updater test ($1) - ignore" \
+              --target "${{ github.sha }}" --title "Automated updater test $4 ($1) - ignore" \
               --notes "Temporary release used by the automated updater test. It is deleted after the test.
           - Test change one
           - Test change two"
           }
           (cd $OUT && sha256sum new.apk | sed "s/new.apk/$ASSET/" > good.sha256 && sha256sum badsig.apk | sed "s/badsig.apk/$ASSET/" > badsig.sha256)
           printf '%064d  %s\n' 0 "$ASSET" > $OUT/wrong.sha256
-          publish e2e-updater-good   $OUT/new.apk    $OUT/good.sha256
-          publish e2e-updater-badsig $OUT/badsig.apk $OUT/badsig.sha256
-          publish e2e-updater-badsum $OUT/new.apk    $OUT/wrong.sha256
+          publish e2e-updater-good   $OUT/new.apk    $OUT/good.sha256   1.0.2
+          publish e2e-updater-badsig $OUT/badsig.apk $OUT/badsig.sha256 1.0.3
+          publish e2e-updater-badsum $OUT/new.apk    $OUT/wrong.sha256  1.0.2
           gh api repos/${{ github.repository }}/releases/latest --jq '"latest release is still: " + .tag_name'
 
       - name: Enable KVM
