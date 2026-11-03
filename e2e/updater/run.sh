@@ -35,7 +35,9 @@ tap_text() { # tap a button in Android's own UI (e.g. the installer) by its labe
   echo "button '$1' not found"; shot "no-button"; return 1
 }
 
-files_in_cache() { adb shell run-as $PKG sh -c 'ls cache/updates 2>/dev/null' | tr -d '\r' || true; }
+files_in_cache() { # lists the app-private update folder (test builds are debuggable, so run-as works)
+  adb shell "run-as $PKG ls cache/updates 2>/dev/null" | tr -d '\r' || true
+}
 
 wifi_only() {
   adb shell svc data disable || true
