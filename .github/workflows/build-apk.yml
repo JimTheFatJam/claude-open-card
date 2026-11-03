@@ -12,6 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # release notes list the commits since the previous release
 
       - uses: actions/setup-java@v5
         with:
@@ -20,47 +22,18 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      # Keep the same signing key between builds so new versions install over old
-      # ones. Uses repository secrets when configured; otherwise generates a key
-      # once and keeps it in the Actions cache. The key is never committed.
-      - name: Restore signing key
-        uses: actions/cache@v4
+      # Signing (permanent key from secrets, or a cached temporary key) - see the composite action
+      - name: Signing config
+        uses: ./.github/actions/android-signing
         with:
-          path: app/ci-signing
-          key: opencard-signing-v1
+          keystore-b64: ${{ secrets.OPENCARD_KEYSTORE_B64 }}
+          keystore-password: ${{ secrets.OPENCARD_KEYSTORE_PASSWORD }}
+          key-alias: ${{ secrets.OPENCARD_KEY_ALIAS }}
 
-      - name: Prepare signing config
-        env:
-          KEYSTORE_B64: ${{ secrets.OPENCARD_KEYSTORE_B64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.OPENCARD_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.OPENCARD_KEY_ALIAS }}
+      - name: Unit tests (updater)
         run: |
-          mkdir -p app/ci-signing
-          if [ -n "$KEYSTORE_B64" ]; then
-            # Permanent key from repository secrets. Decoded to the runner's temp dir
-            # (never into the cached folder) and checked before use.
-            STORE="$RUNNER_TEMP/opencard-release.jks"
-            printf '%s' "$KEYSTORE_B64" | tr -d ' \r\n\t' | base64 -d > "$STORE" \
-              || { echo "::error::OPENCARD_KEYSTORE_B64 is not valid base64 - paste the whole text file again"; exit 1; }
-            PASS="$(printf '%s' "$KEYSTORE_PASSWORD" | tr -d ' \r\n\t')"
-            ALIAS="$(printf '%s' "${KEY_ALIAS:-opencard}" | tr -d ' \r\n\t')"
-            keytool -list -keystore "$STORE" -storepass "$PASS" -alias "$ALIAS" >/dev/null 2>&1 \
-              || { echo "::error::Keystore, password or alias secret is wrong - check OPENCARD_KEYSTORE_PASSWORD and OPENCARD_KEY_ALIAS"; exit 1; }
-            echo "Signing with the permanent key from repository secrets"
-          else
-            if [ ! -f app/ci-signing/release.jks ]; then
-              openssl rand -hex 24 > app/ci-signing/pass
-              keytool -genkeypair -keystore app/ci-signing/release.jks -alias opencard \
-                -keyalg RSA -keysize 2048 -validity 36500 \
-                -storepass "$(cat app/ci-signing/pass)" -keypass "$(cat app/ci-signing/pass)" \
-                -dname "CN=Open Card, O=Open Card"
-            fi
-            STORE="$PWD/app/ci-signing/release.jks"; PASS="$(cat app/ci-signing/pass)"; ALIAS=opencard
-            echo "::warning::No signing secrets set - using the temporary cached key (see README > Signing)"
-          fi
-          # Public certificate fingerprint, so you can tell which key signed this build
-          keytool -list -keystore "$STORE" -storepass "$PASS" -alias "$ALIAS" 2>/dev/null | grep -i "SHA-256" || true
-          printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' "$STORE" "$PASS" "$ALIAS" "$PASS" > app/keystore.properties
+          chmod +x gradlew
+          ./gradlew --no-daemon testReleaseUnitTest -PversionCode=${{ github.run_number }}
 
       - name: Build signed release APK
         run: |
@@ -68,21 +41,41 @@ jobs:
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
           chmod +x gradlew
           ./gradlew --no-daemon assembleRelease -PversionCode=${{ github.run_number }}
-          cp app/build/outputs/apk/release/app-release.apk OpenCard.apk
+          # asset name is configured once, in gradle.properties (updater.apkAsset)
+          ASSET=$(grep '^updater.apkAsset=' gradle.properties | cut -d= -f2)
+          echo "ASSET=$ASSET" >> "$GITHUB_ENV"
+          cp app/build/outputs/apk/release/app-release.apk "$ASSET"
+          # checksum file used by the in-app updater (sha256sum format)
+          sha256sum "$ASSET" > "$ASSET.sha256"
+          cat "$ASSET.sha256"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: OpenCard-apk
-          path: OpenCard.apk
+          path: |
+            ${{ env.ASSET }}
+            ${{ env.ASSET }}.sha256
 
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v1.0.${{ github.run_number }}"
-          gh release create "$TAG" OpenCard.apk \
+          # The release notes are the changelog shown by the in-app updater.
+          PREV=$(git tag --list 'v1.0.*' --sort=-v:refname --merged HEAD | head -n1)
+          {
+            echo "## What's new"
+            git log --no-merges --pretty='- %s' ${PREV:+$PREV..}HEAD | head -n 30
+            echo
+            echo "### Install"
+            echo "Open Card updates itself on Wi-Fi. To install manually, tap **$ASSET** below on your Android device."
+            echo
+            echo "SHA-256: \`$(cut -d' ' -f1 "$ASSET.sha256")\`"
+          } > notes.md
+          cat notes.md
+          gh release create "$TAG" "$ASSET" "$ASSET.sha256" \
             --target "${{ github.sha }}" \
             --title "Open Card $TAG" \
-            --notes "Tap **OpenCard.apk** below to download, then open it on your Android device to install. Built from commit ${{ github.sha }}." \
+            --notes-file notes.md \
             --latest

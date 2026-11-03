@@ -383,9 +383,11 @@
     ];
     const html = rows.map(([k, l, ch]) => `<div class="opt-row"><label>${l}</label><div class="chips" data-key="${k}">${
       ch.map(([v, t]) => `<button class="chip${S[k] === v ? ' on' : ''}" data-v='${JSON.stringify(v)}'>${t}</button>`).join('')}</div></div>`).join('') +
-      `<div class="opt-row"><label>Preview</label>${OC.mini('AS KH QD 10C XX')}</div>`;
+      `<div class="opt-row"><label>Preview</label>${OC.mini('AS KH QD 10C XX')}</div>` +
+      (OC.updater && OC.updater.available ? OC.updater.settingsHTML() : '');
     OC.ui.dialog({ title: 'Settings', html, buttons: [{ label: 'Done', value: true, primary: true }] });
     const wrap = OC.ui._lastDialog;
+    if (OC.updater && OC.updater.available) OC.updater.wireSettings(wrap);
     wrap.querySelectorAll('.chips').forEach((row) => {
       row.querySelectorAll('.chip').forEach((c) => (c.onclick = () => {
         row.querySelectorAll('.chip').forEach((x) => x.classList.remove('on'));
@@ -428,7 +430,13 @@
       title: 'About Open Card',
       html: `<p><b>Open Card</b> is a free collection of ${games.length} classic games played with a standard 52-card deck.</p>
         <p>Every game has a step-by-step tutorial: tap <b>How to play</b> on the menu, or the <b>?</b> button while playing.</p>
-        <p>Everything runs on your device — no internet, no ads, no accounts.</p>`,
+        <p>Everything runs on your device \u2014 no ads, no accounts. The only time it goes online is to check GitHub for updates, and only on Wi-Fi.</p>
+        ${OC.updater && OC.updater.available ? `<p class="note">Version ${OC.esc(OC.updater.versionText())}</p>` : ''}`,
+      buttons: OC.updater && OC.updater.available
+        ? [{ label: 'Check for updates', value: 'check' }, { label: 'OK', value: true, primary: true }]
+        : [{ label: 'OK', value: true, primary: true }],
+    }).then((v) => {
+      if (v === 'check') OC.updater.check();
     });
   }
 

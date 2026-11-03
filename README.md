@@ -23,7 +23,8 @@ Features:
 - Pixel (8-bit) look throughout: blocky cards, pixel-art suits and retro fonts
 - Original 8-bit background music, synthesised on the device. The ♪ button on every screen toggles it, and the volume is in Settings
 - Settings: card back, table colour, four-colour suits, solitaire auto-play, computer speed
-- Works fully offline
+- Works fully offline. The only network use is the optional Wi-Fi-only update check
+- **Automatic updates from GitHub Releases**: checked at launch on Wi-Fi, verified, installed through Android's own installer (see below)
 
 ## Installing on Android
 
@@ -34,6 +35,44 @@ Features:
 4. Tap **Install**, then open **Open Card**.
 
 New versions install over the old one, and your statistics are kept.
+
+## In-app updates
+
+The app updates itself from this repository's GitHub Releases.
+
+- **When it checks:** once per launch, after the game has loaded, and only on unmetered Wi-Fi. It never uses mobile data or checks when offline. You can also check manually under **Settings → Updates** or **About**, which still requires Wi-Fi. Repeat checks use ETags, so they don't use up GitHub's API rate limit.
+- **What the player sees:** a slim banner on the home screen, never during a game, with the installed and latest version, the changelog (the release notes), download progress, and install instructions.
+- **Verification before installing:**
+  - The SHA-256 must match both the `<asset>.sha256` file and GitHub's own asset digest.
+  - The APK must have the same package name, a higher version code, and a compatible minimum SDK.
+  - It must be signed with the same developer certificate as the installed app.
+
+  Anything that fails is deleted and explained to the player.
+- **Installing:** uses Android's `PackageInstaller`. Android always shows its own confirmation screen, and `USER_ACTION_REQUIRED` is set. The first time, the player is guided to allow "Install unknown apps" for Open Card in Android Settings. Nothing bypasses Android security or Play Protect.
+- **Cleanup:**
+  - Downloads live in the app's private cache.
+  - Files are deleted after a successful update (`MY_PACKAGE_REPLACED`), when skipped, cancelled or failed verification, when superseded by a newer release, or after 14 days.
+  - Interrupted downloads resume with HTTP Range requests.
+
+### Configuring the updater
+
+Everything is in `gradle.properties`:
+
+```properties
+updater.githubOwner=JimTheFatJam       # leave empty to disable updates
+updater.githubRepo=claude-open-card
+updater.apkAsset=OpenCard.apk          # release asset name; "<asset>.sha256" is published next to it
+updater.releasePath=releases/latest    # or releases/tags/<tag> for a test or beta channel
+```
+
+The release workflow reads the same asset name, uploads `OpenCard.apk` and `OpenCard.apk.sha256`, and builds the release notes (the in-app changelog) from the commit messages since the previous release. Updates must be signed with the same key, which is why a permanent key is set up as repository secrets (see Signing).
+
+The updater is self-contained in `app/src/main/java/com/opencard/app/updater/`, with the UI in `js/updater.js`. To reuse it in another WebView app, copy the package, add the permissions and receivers from `AndroidManifest.xml`, and wire `UpdateManager` and `UpdateBridge` into the activity as `MainActivity` does.
+
+### Tests
+
+- `./gradlew testReleaseUnitTest` runs the JVM unit tests for version comparison, checksums, release parsing, ETag caching, rate limits, redirects, resumable downloads and failure handling, using a local HTTPS server. They run before every release build.
+- `.github/workflows/updater-e2e.yml` boots an Android 14 emulator, installs an old build and updates it end to end through Android's installer. It also checks that a wrongly signed APK and a checksum mismatch are rejected, and that nothing happens on mobile data. It runs when updater code changes, using temporary pre-releases that it deletes afterwards.
 
 ## Credits
 

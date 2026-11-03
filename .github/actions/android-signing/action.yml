@@ -1,0 +1,61 @@
+name: Android release signing
+description: >
+  Writes app/keystore.properties for Gradle. Uses the permanent key from repository secrets when
+  provided (validated, decoded to the runner temp dir), otherwise a temporary key kept in the
+  Actions cache. Prints the signing certificate's SHA-256 fingerprint.
+inputs:
+  keystore-b64:
+    description: Base64 keystore (secret OPENCARD_KEYSTORE_B64)
+    required: false
+    default: ''
+  keystore-password:
+    description: Keystore/key password (secret OPENCARD_KEYSTORE_PASSWORD)
+    required: false
+    default: ''
+  key-alias:
+    description: Key alias (secret OPENCARD_KEY_ALIAS)
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Restore temporary signing key
+      if: ${{ inputs.keystore-b64 == '' }}
+      uses: actions/cache@v4
+      with:
+        path: app/ci-signing
+        key: opencard-signing-v1
+
+    - name: Write signing config
+      shell: bash
+      env:
+        KEYSTORE_B64: ${{ inputs.keystore-b64 }}
+        KEYSTORE_PASSWORD: ${{ inputs.keystore-password }}
+        KEY_ALIAS: ${{ inputs.key-alias }}
+      run: |
+        mkdir -p app/ci-signing
+        if [ -n "$KEYSTORE_B64" ]; then
+          # Permanent key from repository secrets. Decoded to the runner's temp dir
+          # (never into the cached folder) and checked before use.
+          STORE="$RUNNER_TEMP/opencard-release.jks"
+          printf '%s' "$KEYSTORE_B64" | tr -d ' \r\n\t' | base64 -d > "$STORE" \
+            || { echo "::error::OPENCARD_KEYSTORE_B64 is not valid base64 - paste the whole text file again"; exit 1; }
+          PASS="$(printf '%s' "$KEYSTORE_PASSWORD" | tr -d ' \r\n\t')"
+          ALIAS="$(printf '%s' "${KEY_ALIAS:-opencard}" | tr -d ' \r\n\t')"
+          keytool -list -keystore "$STORE" -storepass "$PASS" -alias "$ALIAS" >/dev/null 2>&1 \
+            || { echo "::error::Keystore, password or alias secret is wrong - check OPENCARD_KEYSTORE_PASSWORD and OPENCARD_KEY_ALIAS"; exit 1; }
+          echo "Signing with the permanent key from repository secrets"
+        else
+          if [ ! -f app/ci-signing/release.jks ]; then
+            openssl rand -hex 24 > app/ci-signing/pass
+            keytool -genkeypair -keystore app/ci-signing/release.jks -alias opencard \
+              -keyalg RSA -keysize 2048 -validity 36500 \
+              -storepass "$(cat app/ci-signing/pass)" -keypass "$(cat app/ci-signing/pass)" \
+              -dname "CN=Open Card, O=Open Card"
+          fi
+          STORE="$PWD/app/ci-signing/release.jks"; PASS="$(cat app/ci-signing/pass)"; ALIAS=opencard
+          echo "::warning::No signing secrets set - using the temporary cached key (see README > Signing)"
+        fi
+        # Public certificate fingerprint, so you can tell which key signed this build
+        keytool -list -keystore "$STORE" -storepass "$PASS" -alias "$ALIAS" 2>/dev/null | grep -i "SHA-256" || true
+        printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' "$STORE" "$PASS" "$ALIAS" "$PASS" > app/keystore.properties

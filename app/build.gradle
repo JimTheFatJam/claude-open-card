@@ -15,6 +15,22 @@ android {
         targetSdk 35
         versionCode vCode
         versionName "1.0.${vCode}"
+
+        // In-app updater source (see gradle.properties)
+        buildConfigField 'String', 'UPDATE_GITHUB_OWNER', "\"${project.findProperty('updater.githubOwner') ?: ''}\""
+        buildConfigField 'String', 'UPDATE_GITHUB_REPO', "\"${project.findProperty('updater.githubRepo') ?: ''}\""
+        buildConfigField 'String', 'UPDATE_APK_ASSET', "\"${project.findProperty('updater.apkAsset') ?: 'app-release.apk'}\""
+        buildConfigField 'String', 'UPDATE_RELEASE_PATH', "\"${project.findProperty('updater.releasePath') ?: 'releases/latest'}\""
+        // End-to-end updater tests only (-PupdaterE2E=true): lets the test drive the web UI.
+        buildConfigField 'boolean', 'WEB_DEBUG', "${project.hasProperty('updaterE2E')}"
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
     }
 
     // Signing: CI writes app/keystore.properties (from repository secrets or a
@@ -37,6 +53,7 @@ android {
     buildTypes {
         release {
             minifyEnabled false
+            debuggable project.hasProperty('updaterE2E') // never set for published releases
             // Without a keystore, fall back to the debug key so local builds still install.
             signingConfig ksFile.exists() ? signingConfigs.release : signingConfigs.debug
         }
@@ -46,4 +63,9 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+}
+
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20240303' // real org.json for JVM tests (Android's is a stub there)
 }

@@ -1,0 +1,115 @@
+name: Updater end-to-end test
+
+# Installs an old build on an Android emulator and lets it update itself from GitHub, exactly
+# like a player would (Wi-Fi only, verification, Android's confirmation screen), plus failure cases.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'app/src/main/java/**'
+      - 'app/src/main/AndroidManifest.xml'
+      - 'app/src/main/assets/www/js/updater.js'
+      - 'app/build.gradle'
+      - 'e2e/updater/**'
+      - '.github/workflows/updater-e2e.yml'
+
+permissions:
+  contents: write # creates and deletes temporary test pre-releases
+
+concurrency:
+  group: updater-e2e
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      OUT: e2e-out
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Signing config (same key as real releases)
+        uses: ./.github/actions/android-signing
+        with:
+          keystore-b64: ${{ secrets.OPENCARD_KEYSTORE_B64 }}
+          keystore-password: ${{ secrets.OPENCARD_KEYSTORE_PASSWORD }}
+          key-alias: ${{ secrets.OPENCARD_KEY_ALIAS }}
+
+      - name: Build test APKs
+        run: |
+          set -e
+          chmod +x gradlew
+          mkdir -p $OUT
+          ASSET=$(grep '^updater.apkAsset=' gradle.properties | cut -d= -f2)
+          echo "ASSET=$ASSET" >> "$GITHUB_ENV"
+          build() { ./gradlew --no-daemon -q assembleRelease -PupdaterE2E=true "$@" && cp app/build/outputs/apk/release/app-release.apk "$OUT/$NAME"; }
+          # the update everyone should receive: 1.0.2
+          NAME=new.apk build -PversionCode=2
+          # 1.0.3 re-signed with an unrelated key (must be rejected)
+          NAME=unsigned3.apk build -PversionCode=3
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n1)
+          keytool -genkeypair -keystore "$RUNNER_TEMP/other.jks" -alias other -keyalg RSA -keysize 2048 -validity 1000 \
+            -storepass otherpass -keypass otherpass -dname "CN=Somebody Else" >/dev/null 2>&1
+          "$BT/apksigner" sign --ks "$RUNNER_TEMP/other.jks" --ks-pass pass:otherpass --out "$OUT/badsig.apk" "$OUT/unsigned3.apk"
+          # old 1.0.1 builds, each following its own test release
+          for t in good badsig badsum; do
+            NAME=old-$t.apk build -PversionCode=1 -Pupdater.releasePath=releases/tags/e2e-updater-$t
+          done
+          ls -l $OUT
+
+      - name: Publish temporary test pre-releases
+        run: |
+          set -e
+          publish() { # tag apk checksum-file
+            gh release delete "$1" --cleanup-tag -y >/dev/null 2>&1 || true
+            mkdir -p "rel-$1" && cp "$2" "rel-$1/$ASSET" && cp "$3" "rel-$1/$ASSET.sha256"
+            gh release create "$1" "rel-$1/$ASSET" "rel-$1/$ASSET.sha256" --prerelease --latest=false \
+              --target "${{ github.sha }}" --title "Automated updater test ($1) - ignore" \
+              --notes "Temporary release used by the automated updater test. It is deleted after the test.
+          - Test change one
+          - Test change two"
+          }
+          (cd $OUT && sha256sum new.apk | sed "s/new.apk/$ASSET/" > good.sha256 && sha256sum badsig.apk | sed "s/badsig.apk/$ASSET/" > badsig.sha256)
+          printf '%064d  %s\n' 0 "$ASSET" > $OUT/wrong.sha256
+          publish e2e-updater-good   $OUT/new.apk    $OUT/good.sha256
+          publish e2e-updater-badsig $OUT/badsig.apk $OUT/badsig.sha256
+          publish e2e-updater-badsum $OUT/new.apk    $OUT/wrong.sha256
+          gh api repos/${{ github.repository }}/releases/latest --jq '"latest release is still: " + .tag_name'
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run on Android 14 emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash e2e/updater/run.sh
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: updater-e2e-screens
+          path: e2e-out/shots
+
+      - name: Delete temporary test pre-releases
+        if: always()
+        run: |
+          for t in good badsig badsum; do gh release delete "e2e-updater-$t" --cleanup-tag -y || true; done

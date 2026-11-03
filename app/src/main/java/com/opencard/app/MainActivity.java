@@ -18,14 +18,19 @@ import android.webkit.WebViewClient;
 import android.window.OnBackInvokedCallback;
 import android.window.OnBackInvokedDispatcher;
 
+import com.opencard.app.updater.UpdateBridge;
+import com.opencard.app.updater.UpdateManager;
+
 /**
  * Open Card hosts the whole game collection (HTML/CSS/JS in assets/www)
- * inside a full-screen WebView. Everything runs offline.
+ * inside a full-screen WebView. The games run offline; the only network use is the
+ * Wi-Fi-only update check (see the updater package).
  */
 public class MainActivity extends Activity {
 
     private WebView webView;
     private OnBackInvokedCallback backCallback;
+    private UpdateManager updates;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -33,6 +38,7 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
+        if (BuildConfig.WEB_DEBUG) WebView.setWebContentsDebuggingEnabled(true); // e2e test builds only
         webView = new WebView(this);
         webView.setBackgroundColor(Color.parseColor("#0F5132"));
         webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
@@ -58,7 +64,18 @@ public class MainActivity extends Activity {
                 // Stay inside the bundled app; never navigate to outside pages.
                 return !request.getUrl().toString().startsWith("file:///android_asset/");
             }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                // One quiet update check per launch, only on Wi-Fi, after the game has loaded.
+                if (url.startsWith("file:///android_asset/")) updates.onAppLaunched();
+            }
         });
+
+        updates = UpdateManager.get(this);
+        UpdateBridge bridge = new UpdateBridge(webView, updates);
+        webView.addJavascriptInterface(bridge, UpdateBridge.JS_NAME);
+        updates.attach(this, bridge);
 
         setContentView(webView);
         hideSystemBars();
@@ -137,6 +154,7 @@ public class MainActivity extends Activity {
         super.onResume();
         webView.onResume();
         webView.evaluateJavascript("window.OpenCard && OpenCard.music && OpenCard.music.appPaused(false)", null);
+        updates.onResume(); // continue an update after the user allowed installs in Settings
     }
 
     @Override
@@ -144,6 +162,7 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT >= 33 && backCallback != null) {
             getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(backCallback);
         }
+        updates.detach(this);
         webView.destroy();
         super.onDestroy();
     }

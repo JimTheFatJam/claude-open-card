@@ -417,3 +417,34 @@ body.pixel .logo-pixel { display: block; }
 .game-panel .panel-h { font-size: 15px; margin: 12px 0 8px; }
 body.pixel .game-panel .panel-h { font-family: var(--px-font); font-size: 11px; font-weight: 400; }
 body.pixel .tile-go { font-family: var(--px-font); font-size: 12px; }
+
+/* ---------- updates ---------- */
+#update-banner {
+  display: flex; align-items: center; gap: 10px; margin: 0 24px 4px; padding: 8px 12px;
+  background: rgba(255, 213, 79, 0.16); border-left: 4px solid var(--gold); flex-wrap: wrap;
+}
+#update-banner .upd-text { flex: 1; min-width: 180px; }
+#update-banner .upd-text b { color: var(--gold); }
+#update-banner .upd-ico { color: var(--gold); }
+#update-banner .btn.small.round { width: 32px; height: 32px; padding: 0; }
+@media (max-width: 640px) { #update-banner { margin: 0 14px 4px; } }
+.update-dialog .upd-versions { border-collapse: collapse; margin: 0 0 10px; }
+.update-dialog .upd-versions td { padding: 2px 16px 2px 0; }
+.update-dialog .upd-h { margin: 10px 0 6px; font-size: 15px; }
+.update-dialog .upd-notes { max-height: 34vh; overflow-y: auto; background: rgba(0, 0, 0, 0.22); padding: 8px 12px; margin-bottom: 10px; }
+.update-dialog .upd-notes ul { margin: 0; }
+.update-dialog .upd-notes code { background: rgba(255, 255, 255, 0.1); padding: 0 4px; }
+.update-dialog .upd-progress { height: 18px; background: rgba(0, 0, 0, 0.35); border: 2px solid var(--line); margin: 8px 0; overflow: hidden; }
+.update-dialog .upd-progress i { display: block; height: 100%; background: var(--gold); transition: width 0.2s steps(4); }
+.update-dialog .upd-steps { margin: 6px 0 10px; }
+.update-dialog .upd-err { color: #ff8a80; font-weight: 600; }
+.update-dialog .upd-msg { color: var(--gold); }
+.update-dialog .upd-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; margin-top: 12px; }
+.upd-chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 10px; }
+body.pixel #update-banner { box-shadow: 0 0 0 3px var(--px-edge); border-left-width: 6px; font-size: 20px; }
+body.pixel .update-dialog .upd-h { font-family: var(--px-font); font-size: 11px; font-weight: 400; }
+body.pixel .update-dialog .upd-progress { border: 0; box-shadow: 0 0 0 3px var(--px-edge), inset 0 0 0 2px rgba(255, 255, 255, 0.15); }
+body.pixel .update-dialog .upd-progress i {
+  background: repeating-linear-gradient(90deg, var(--gold) 0 10px, #e0a800 10px 12px);
+}
+body.pixel .update-dialog .upd-notes { box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.45); }
