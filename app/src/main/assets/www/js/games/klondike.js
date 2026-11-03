@@ -217,7 +217,8 @@
         for (let k = first; k < col.length; k++) {
           const run = col.slice(k);
           let canMove = false;
-          for (let j = 0; j < 7 && !canMove; j++) if (j !== i && s.t[j].length && this.canPlace(run, 't' + j)) canMove = true;
+          // an empty column is only a real target when it uncovers something (a King already at the bottom gains nothing)
+          for (let j = 0; j < 7 && !canMove; j++) if (j !== i && (s.t[j].length || k > 0) && this.canPlace(run, 't' + j)) canMove = true;
           if (!canMove) continue;
           if (k === first && k > 0) return true; // turns over a face-down card
           if (k === 0 && kingWaiting) return true; // empties a column for a King

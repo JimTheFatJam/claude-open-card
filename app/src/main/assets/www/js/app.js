@@ -166,7 +166,7 @@
       btn.onclick = () => b.onClick();
       bar.appendChild(btn);
     }
-    if (current && current.started && current.inst.render) requestAnimationFrame(() => current && current.inst.render());
+    if (current && current.started && current.inst.render) requestAnimationFrame(() => current && current.started && current.inst.render());
   }
 
   async function newGameClicked() {
