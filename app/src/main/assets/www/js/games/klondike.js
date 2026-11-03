@@ -19,6 +19,7 @@
       s.stock = deck;
       this.s = s;
       this.draw = this.ctx.opts.draw;
+      this.blockedKey = null;
     }
 
     pile(p) {
@@ -172,6 +173,101 @@
     }
     onSettled() {
       this.ctx.actions(this.canAutoFinish() ? [{ label: 'Auto finish', primary: true, onClick: () => this.autoFinish() }] : []);
+      this.checkBlocked();
+    }
+
+    /** Every card that will be on top of the waste during a full trip through the stock (with no other moves). */
+    reachableStockCards() {
+      const s = this.s;
+      const out = new Set();
+      if (s.waste.length) out.add(s.waste[s.waste.length - 1]);
+      let stock = s.stock.slice(), waste = s.waste.slice();
+      const total = stock.length + waste.length;
+      for (let step = 0; step < 2 * (total + 2); step++) {
+        if (!stock.length) {
+          if (!waste.length) break;
+          stock = waste.reverse();
+          waste = [];
+          continue;
+        }
+        for (let i = 0; i < this.draw && stock.length; i++) waste.push(stock.pop());
+        out.add(waste[waste.length - 1]);
+      }
+      return [...out];
+    }
+
+    /** True when some move can still make progress (cycling the stock alone never does). */
+    hasUsefulMove() {
+      const s = this.s;
+      const avail = this.reachableStockCards();
+      const fits = (c, top) => top.up && OC.isRed(top) !== OC.isRed(c) && top.r === c.r + 1;
+      const toFoundation = (c) => [0, 1, 2, 3].some((i) => this.canPlace([c], 'f' + i));
+      // cards that go home, or stock cards that can be played on the table
+      for (const col of s.t) if (col.length && col[col.length - 1].up && toFoundation(col[col.length - 1])) return true;
+      for (const c of avail) {
+        if (toFoundation(c)) return true;
+        for (let j = 0; j < 7; j++) if (this.canPlace([c], 't' + j)) return true;
+      }
+      const kingWaiting = avail.some((c) => c.r === 13) || s.t.some((col) => col.some((c, k) => c.up && c.r === 13 && k > 0));
+      // tableau moves that reveal a card, free a useful empty column, or open a spot for another card
+      for (let i = 0; i < 7; i++) {
+        const col = s.t[i];
+        const first = col.findIndex((c) => c.up);
+        if (first < 0) continue;
+        for (let k = first; k < col.length; k++) {
+          const run = col.slice(k);
+          let canMove = false;
+          for (let j = 0; j < 7 && !canMove; j++) if (j !== i && s.t[j].length && this.canPlace(run, 't' + j)) canMove = true;
+          if (!canMove) continue;
+          if (k === first && k > 0) return true; // turns over a face-down card
+          if (k === 0 && kingWaiting) return true; // empties a column for a King
+          if (k > first) {
+            const exposed = col[k - 1];
+            if (toFoundation(exposed)) return true;
+            if (avail.some((c) => fits(c, exposed))) return true;
+            // ...or lets another column's run move there, uncovering a face-down card
+            for (let j = 0; j < 7; j++) {
+              if (j === i) continue;
+              const f2 = s.t[j].findIndex((c) => c.up);
+              if (f2 > 0 && fits(s.t[j][f2], exposed)) return true;
+            }
+          }
+        }
+      }
+      // taking a card back from a foundation to make room for another card
+      for (const f of s.f) {
+        if (!f.length) continue;
+        const top = f[f.length - 1];
+        if (!s.t.some((col) => col.length && fits(top, col[col.length - 1]))) continue;
+        const asTop = Object.assign({}, top, { up: true });
+        if (avail.some((c) => fits(c, asTop))) return true;
+        for (const col of s.t) {
+          const first = col.findIndex((c) => c.up);
+          if (first > 0 && fits(col[first], asTop)) return true;
+        }
+      }
+      return false;
+    }
+
+    /** Tell the player when the deal is blocked instead of letting them cycle the stock forever. */
+    async checkBlocked() {
+      if (this.over || this.isWon() || this.canAutoFinish() || this.hasUsefulMove()) return;
+      const key = JSON.stringify([this.s.t.map((c) => c.map((x) => x.id + (x.up ? 'u' : ''))), this.s.f.map((f) => f.length)]);
+      if (this.blockedKey === key) return; // already told them about this position
+      this.blockedKey = key;
+      const v = await this.ctx.dialog({
+        title: 'No more moves',
+        html: `<p>None of the cards left in the stock can be played, and there are no useful moves on the table. Going through the stock again would only repeat the same cards.</p>
+          <p>This game is <b>blocked</b> and can't be won from here. That's normal in Klondike: not every deal can be solved.</p>
+          <p class="note">You can undo some moves and try a different path, or start a new deal.</p>`,
+        buttons: [{ label: 'Keep looking', value: 'keep' }, { label: 'Undo a move', value: 'undo' }, { label: 'New game', value: 'new', primary: true }],
+      });
+      if (!this.ctx.alive()) return;
+      if (v === 'undo') this.undo();
+      else if (v === 'new') {
+        if (this.inProgress()) this.ctx.record(false);
+        this.start();
+      }
     }
     async autoFinish() {
       this.ctx.actions([]);
@@ -228,8 +324,13 @@
         const c = s.waste[s.waste.length - 1];
         for (let j = 0; j < 7; j++) if (this.canPlace([c], 't' + j)) return { cards: [c], slot: 't' + j, text: 'Play ' + OC.cardName(c) + ' onto column ' + (j + 1) };
       }
+      if (!this.hasUsefulMove()) return null; // cycling the stock can't help any more
       if (s.stock.length || s.waste.length) return { cards: s.stock.length ? [s.stock[s.stock.length - 1]] : [], slot: 'stock', text: s.stock.length ? 'Draw from the stock' : 'Turn the waste back over to the stock' };
       return null;
+    }
+
+    noHintText() {
+      return 'No useful moves left \u2014 this deal is blocked. Undo some moves or start a new game.';
     }
 
     extraStatus() {
