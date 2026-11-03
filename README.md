@@ -67,6 +67,14 @@ Requires JDK 17+ and the Android SDK:
 
 ### Signing
 
-No signing key is stored in the repository. On the first CI build the workflow generates a release key and keeps it in the GitHub Actions cache, so later builds have the same signature and install over the previous version.
+Release builds are signed in GitHub Actions. The signing key is **never stored in the repository**.
 
-GitHub evicts cache entries that go unused for 7 days. After a quiet week the next build gets a new key, and you'd need to uninstall the old app once before installing the new one. For a permanent key, add these repository secrets: `OPENCARD_KEYSTORE_B64` (your keystore, base64-encoded), `OPENCARD_KEYSTORE_PASSWORD` and `OPENCARD_KEY_ALIAS`. The workflow uses them when they are present.
+- **Permanent key (recommended):** add three repository secrets under *Settings → Secrets and variables → Actions*:
+  - `OPENCARD_KEYSTORE_B64` holds the release keystore, base64-encoded.
+  - `OPENCARD_KEYSTORE_PASSWORD` holds the keystore and key password.
+  - `OPENCARD_KEY_ALIAS` holds the key alias (`opencard`).
+
+  The workflow checks them before building and fails with a clear error if one is wrong. Keep a private backup of the keystore file and password. Without them, future updates can't install over the app.
+- **Fallback:** with no secrets, the workflow generates a temporary key and keeps it in the GitHub Actions cache. GitHub deletes cache entries unused for 7 days, which would change the signature.
+
+Each build log prints the signing certificate's SHA-256 fingerprint, so you can confirm which key was used. Switching keys changes the app's signature, so the app must be uninstalled once (clearing its stats) before the new build will install.
