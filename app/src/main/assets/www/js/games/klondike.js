@@ -7,6 +7,24 @@
 
   class Klondike extends OC.Solitaire {
     deal() {
+      this.draw = this.ctx.opts.draw;
+      this.blockedKey = null;
+      this.s = this.shuffleDeal();
+      this.verified = false;
+      this.plan = null;
+      if (this.ctx.opts.deals === 'winnable' && OC.KlondikeSolver) {
+        // Keep shuffling until the solver finds a winning line (usually 1-3 tries).
+        const t0 = Date.now();
+        for (let tries = 0; tries < 60 && Date.now() - t0 < 4000; tries++) {
+          if (OC.KlondikeSolver.solve(OC.KlondikeSolver.fromGame(this.s), this.draw, 20000).result === 'win') {
+            this.verified = true;
+            break;
+          }
+          this.s = this.shuffleDeal();
+        }
+      }
+    }
+    shuffleDeal() {
       const deck = OC.shuffle(OC.makeDeck());
       const s = { stock: [], waste: [], f: [[], [], [], []], t: [[], [], [], [], [], [], []], passes: 0 };
       for (let i = 0; i < 7; i++) {
@@ -17,9 +35,7 @@
         }
       }
       s.stock = deck;
-      this.s = s;
-      this.draw = this.ctx.opts.draw;
-      this.blockedKey = null;
+      return s;
     }
 
     pile(p) {
@@ -164,7 +180,9 @@
         const mv = tryPile('t' + i);
         if (mv) return mv;
       }
-      return tryPile('w');
+      // In Draw 3, taking a card out of the waste shifts which cards come up on later
+      // passes, so it can spoil a winnable game. Only the player moves waste cards then.
+      return this.draw === 1 ? tryPile('w') : null;
     }
 
     canAutoFinish() {
@@ -298,7 +316,49 @@
       if (this.isWon()) this.won();
     }
 
+    /** Ask the solver for the next move on a winning line, translated into a hint. */
+    solverHint() {
+      const S = OC.KlondikeSolver;
+      if (!S) return null;
+      const now = S.fromGame(this.s);
+      const here = S.sig(now);
+      // Keep following the same winning plan while the player follows it; re-plan if they don't.
+      let step = this.plan ? this.plan.sigs.indexOf(here, this.plan.at) : -1;
+      if (step < 0) {
+        const res = S.solve(now, this.draw, 40000);
+        this.plan = null;
+        if (res.result === 'lost') return { lost: true };
+        if (res.result !== 'win' || !res.moves.length) return null;
+        this.plan = { moves: res.moves, sigs: S.plan(now, res.moves), at: 0 };
+        step = 0;
+      }
+      this.plan.at = step;
+      const mv = this.plan.moves[step];
+      const s = this.s;
+      const byCode = (code) => [].concat(s.stock, s.waste, ...s.t, ...s.f).find((c) => c.s * 13 + c.r - 1 === code);
+      const card = byCode(mv.card);
+      const fSlot = (c) => [0, 1, 2, 3].map((i) => 'f' + i).find((f) => this.canPlace([c], f));
+      const colName = (i) => 'column ' + (i + 1);
+      if (mv.t === 'tf') return { cards: [card], slot: fSlot(card), text: 'Move the ' + OC.cardName(card) + ' to the foundation' };
+      if (mv.t === 'tt') {
+        const cards = s.t[mv.from].slice(mv.idx);
+        return { cards, slot: 't' + mv.to, text: 'Move the ' + OC.cardName(cards[0]) + (cards.length > 1 ? ' stack' : '') + ' onto ' + (s.t[mv.to].length ? colName(mv.to) : 'the empty column') };
+      }
+      if (mv.t === 'ft') return { cards: [card], slot: 't' + mv.to, text: 'Move the ' + OC.cardName(card) + ' back down onto ' + colName(mv.to) + ' to make room' };
+      // a stock card: play it if it's on top of the waste, otherwise keep drawing
+      const top = s.waste[s.waste.length - 1];
+      if (top && top.id === card.id) {
+        if (mv.t === 'wf') return { cards: [card], slot: fSlot(card), text: 'Move the ' + OC.cardName(card) + ' to the foundation' };
+        return { cards: [card], slot: 't' + mv.to, text: 'Play the ' + OC.cardName(card) + ' onto ' + (s.t[mv.to].length ? colName(mv.to) : 'the empty column') };
+      }
+      if (!s.stock.length) return { cards: [], slot: 'stock', text: 'Turn the waste back over, then keep drawing until the ' + OC.cardName(card) + ' comes up' };
+      return { cards: [s.stock[s.stock.length - 1]], slot: 'stock', text: 'Draw from the stock until the ' + OC.cardName(card) + ' comes up' };
+    }
+
     findHint() {
+      const best = this.solverHint();
+      if (best && !best.lost) return best;
+      this.hintLost = !!(best && best.lost);
       const s = this.s;
       // 1. to foundation
       for (const p of ['w', 't0', 't1', 't2', 't3', 't4', 't5', 't6']) {
@@ -334,8 +394,14 @@
       return 'No useful moves left \u2014 this deal is blocked. Undo some moves or start a new game.';
     }
 
+    hint() {
+      super.hint();
+      // the solver checked every line it knows and none wins, though some moves remain
+      if (this.hintLost && this.hasUsefulMove()) this.ctx.toast('No winning line found from here. Try Undo, or start a new game', 3000);
+    }
+
     extraStatus() {
-      return 'Draw ' + this.draw;
+      return 'Draw ' + this.draw + (this.verified ? ' \u00b7 <b>Winnable</b>' : '');
     }
 
     render() {
@@ -385,7 +451,10 @@
     players: '1 player',
     blurb: 'The classic patience game. Build four suit piles from Ace to King.',
     preview: 'KS QH JS',
-    options: [{ key: 'draw', label: 'Cards drawn from stock', def: 1, choices: [[1, 'Draw 1 (easier)'], [3, 'Draw 3 (classic)']] }],
+    options: [
+      { key: 'draw', label: 'Cards drawn from stock', def: 1, choices: [[1, 'Draw 1 (easier)'], [3, 'Draw 3 (classic)']] },
+      { key: 'deals', label: 'Deals', def: 'winnable', choices: [['winnable', 'Winnable only (recommended)'], ['random', 'Random (some can\u2019t be won)']] },
+    ],
     create: (ctx) => new Klondike(ctx),
     tutorial: [
       {
@@ -418,13 +487,14 @@
         title: 'The stock',
         body: `<p>Tap the stock to turn over cards onto the waste: <b>1 card</b> at a time in Draw 1, or <b>3 cards</b> in Draw 3 (only the top one is playable).</p>
           <p>When the stock runs out, tap the empty space to turn the waste back over and go through it again.</p>
-          <p>Change the draw mode with the <b>New</b> button.</p>`,
+          <p>Change the draw mode with the <b>New</b> button.</p>
+          <p class="tip">Not every Klondike deal can be won. With <b>Deals: Winnable only</b> (the default, set from <b>New</b>) every game you're dealt has been checked by a solver and can definitely be won. If you get completely stuck, the game tells you.</p>`,
       },
       {
         title: 'Controls',
         body: `<ul><li><b>Drag</b> a card or run to move it.</li>
           <li><b>Tap</b> a card to send it to the best legal spot automatically.</li>
-          <li><b>Undo</b> takes back moves; <b>Hint</b> highlights a suggested move.</li>
+          <li><b>Undo</b> takes back moves. <b>Hint</b> works out a winning line from where you are and shows its next move, so following the hints wins a winnable deal.</li>
           <li>Cards that are safe to send home are moved to the foundations for you (turn this off in Settings).</li>
           <li>Once every card is face up, tap <b>Auto finish</b>.</li></ul>
           <p class="tip">Strategy: uncover face-down cards in the longest columns first, and don't rush cards to the foundations if you still need them to build on.</p>`,
