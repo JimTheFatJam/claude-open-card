@@ -49,6 +49,9 @@
     inProgress() {
       return this.started && !this.over;
     }
+    progressText() {
+      return `hand ${this.handNo} \u00b7 you have ${this.players[0].chips} chips`;
+    }
     start() {
       this.T.clear();
       this.over = false;

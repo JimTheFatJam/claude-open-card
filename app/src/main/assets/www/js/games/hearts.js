@@ -23,6 +23,9 @@
     inProgress() {
       return this.started && !this.over;
     }
+    progressText() {
+      return `round ${this.round} \u00b7 your score ${this.scores[0]}`;
+    }
     start() {
       this.T.clear();
       this.scores = [0, 0, 0, 0];

@@ -37,6 +37,7 @@
 
     /* ----- lifecycle ----- */
     start() {
+      OC.store.set('save.' + this.ctx.def.id, null);
       this.history = [];
       this.moves = 0;
       this.over = false;
@@ -78,6 +79,7 @@
       this.render();
       this.updateStatus();
       this.afterMove();
+      this.persist();
     }
     undo() {
       if (this.busy || this.over || !this.history.length) {
@@ -89,6 +91,7 @@
       this.moves++;
       this.render();
       this.updateStatus();
+      this.persist();
     }
     async afterMove() {
       if (this.isWon()) return this.won();
@@ -106,10 +109,12 @@
         }
         this.busy = false;
       }
+      this.persist();
       if (this.onSettled) this.onSettled();
     }
     won() {
       this.over = true;
+      OC.store.set('save.' + this.ctx.def.id, null);
       clearInterval(this.timer);
       this.updateStatus();
       this.render();
@@ -121,6 +126,69 @@
           html: `<p>You finished ${this.ctx.def.name} in <b>${this.moves}</b> moves and <b>${this.fmtTime()}</b>.</p>`,
         });
       }, 700);
+    }
+
+    /* ----- save, restore, pause ----- */
+    /** Save the game on the device so it can be continued later, even after closing the app. */
+    persist() {
+      if (this.over || !this.moves) return;
+      try {
+        OC.store.set('save.' + this.ctx.def.id, {
+          v: 1,
+          s: this.s,
+          history: this.history.slice(-40),
+          moves: this.moves,
+          elapsed: this.timer ? Math.floor((Date.now() - this.t0) / 1000) : this.elapsed,
+          opts: this.ctx.opts,
+          extra: this.saveExtra ? this.saveExtra() : null,
+          summary: this.progressText(),
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    restore(d) {
+      if (!d || !d.s) throw new Error('nothing to restore');
+      this.s = d.s;
+      this.history = Array.isArray(d.history) ? d.history : [];
+      this.moves = d.moves || 0;
+      this.elapsed = d.elapsed || 0;
+      this.over = false;
+      this.busy = false;
+      this.t0 = 0;
+      clearInterval(this.timer);
+      this.timer = null;
+      this.clearHint(true);
+      this.table.clear();
+      if (this.onRestore) this.onRestore(d.extra || {});
+      this.ctx.buttons([
+        { label: '\u21b6 Undo', title: 'Undo', onClick: () => this.undo() },
+        { label: 'Hint', onClick: () => this.hint() },
+      ]);
+      this.ctx.actions([]);
+      this.render();
+      this.updateStatus();
+      if (this.onSettled) this.onSettled();
+    }
+    suspend() {
+      if (this.timer) {
+        this.elapsed = Math.floor((Date.now() - this.t0) / 1000);
+        clearInterval(this.timer);
+        this.timer = null;
+        this.wasTiming = true;
+      }
+      this.persist();
+    }
+    resume() {
+      if (this.wasTiming && !this.over) {
+        this.wasTiming = false;
+        this.t0 = Date.now() - this.elapsed * 1000;
+        this.timer = setInterval(() => this.updateStatus(), 1000);
+      }
+      this.updateStatus();
+    }
+    progressText() {
+      return `${this.moves} moves \u00b7 ${this.fmtTime()}`;
     }
 
     /* ----- status ----- */

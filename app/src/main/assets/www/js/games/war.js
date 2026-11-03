@@ -18,6 +18,9 @@
     inProgress() {
       return this.started && !this.over;
     }
+    progressText() {
+      return `you ${this.piles[0].length} cards, computer ${this.piles[1].length}`;
+    }
     start() {
       this.T.clear();
       const deck = OC.shuffle(OC.makeDeck());

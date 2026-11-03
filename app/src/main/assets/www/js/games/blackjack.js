@@ -65,7 +65,10 @@
       this.detach = OC.attachInput(this.T, { onTap: () => {} });
     }
     inProgress() {
-      return false;
+      return this.phase === 'deal' || this.phase === 'play' || this.phase === 'dealer';
+    }
+    progressText() {
+      return 'hand in play';
     }
     destroy() {
       this.detach();

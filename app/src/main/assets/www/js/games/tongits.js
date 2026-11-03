@@ -101,6 +101,9 @@
     inProgress() {
       return this.started && !this.over;
     }
+    progressText() {
+      return `wins ${this.tally.join('-')} (You-Ava-Ben) \u00b7 ${this.players[0].hand.length} cards in hand`;
+    }
 
     /* ----- setup ----- */
     start() {

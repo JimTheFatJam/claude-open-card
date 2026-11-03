@@ -17,6 +17,9 @@
     inProgress() {
       return this.started && !this.over;
     }
+    progressText() {
+      return `you have ${this.books[0].length} books`;
+    }
     start() {
       this.T.clear();
       const nOpp = this.ctx.opts.opponents;

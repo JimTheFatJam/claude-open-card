@@ -25,23 +25,85 @@
       if (!gs.length) return '';
       return `<section><h2>${cat}<small>${sub}</small></h2><div class="tiles">${gs.map(tileHTML).join('')}</div></section>`;
     }).join('');
-    list.querySelectorAll('[data-play]').forEach((b) => (b.onclick = () => openGame(b.dataset.play)));
-    list.querySelectorAll('[data-learn]').forEach((b) => (b.onclick = (e) => {
-      e.stopPropagation();
-      const g = games.find((x) => x.id === b.dataset.learn);
-      OC.ui.tutorial(g, () => openGame(g.id));
-    }));
+    list.querySelectorAll('.tile[data-open]').forEach((t) => (t.onclick = () => gamePanel(t.dataset.open)));
   }
 
   function tileHTML(g) {
     const st = OC.stats.get(g.id);
     const rec = st.played ? `<span class="rec">${st.won}/${st.played} won</span>` : '<span class="rec new">New</span>';
-    return `<div class="tile" data-play="${g.id}">
+    const going = canContinue(g.id) ? '<span class="rec going">In progress</span>' : '';
+    return `<div class="tile" data-open="${g.id}" role="button" tabindex="0">
       <div class="tile-art">${OC.mini(g.preview)}</div>
       <div class="tile-info"><h3>${OC.esc(g.name)}</h3><p>${OC.esc(g.blurb)}</p>
-      <div class="tile-meta"><span>${OC.esc(g.players)}</span>${rec}</div></div>
-      <div class="tile-btns"><button class="btn small" data-learn="${g.id}">How to play</button><button class="btn small primary" data-play="${g.id}">Play</button></div>
+      <div class="tile-meta"><span>${OC.esc(g.players)}</span>${rec}${going}</div></div>
+      <div class="tile-go" aria-hidden="true">▶</div>
     </div>`;
+  }
+
+  /** Can this game be resumed (paused in memory, or saved on the device)? */
+  function canContinue(id) {
+    const sess = sessions[id];
+    if (sess && sess.started && isInProgress(sess)) return true;
+    return !!OC.store.get('save.' + id, null);
+  }
+  function isInProgress(sess) {
+    try { return !!(sess.inst.inProgress && sess.inst.inProgress()); } catch (_) { return false; }
+  }
+
+  function wireChips(wrap, sel) {
+    wrap.querySelectorAll('.chips').forEach((row) => {
+      row.querySelectorAll('.chip').forEach((c) => (c.onclick = () => {
+        row.querySelectorAll('.chip').forEach((x) => x.classList.remove('on'));
+        c.classList.add('on');
+        sel[row.dataset.key] = JSON.parse(c.dataset.v);
+      }));
+    });
+  }
+  function optionChips(def, sel) {
+    return (def.options || []).map((o) => `<div class="opt-row"><label>${o.label}</label><div class="chips" data-key="${o.key}">${
+      o.choices.map(([v, l]) => `<button class="chip${sel[o.key] === v ? ' on' : ''}" data-v="${OC.esc(JSON.stringify(v))}">${l}</button>`).join('')}</div></div>`).join('');
+  }
+
+  /** The game's panel: stats, options, How to play, New game and Continue. */
+  async function gamePanel(id) {
+    const def = games.find((g) => g.id === id);
+    if (!def) return;
+    const sess = sessions[id];
+    const live = !!(sess && sess.started && isInProgress(sess));
+    const saved = live ? null : OC.store.get('save.' + id, null);
+    const resumable = live || !!saved;
+    let progress = '';
+    if (live) {
+      let txt = '';
+      try { txt = sess.inst.progressText ? sess.inst.progressText() : ''; } catch (_) {}
+      progress = 'Paused game' + (txt ? ': ' + txt : '');
+    } else if (saved) progress = 'Saved game' + (saved.summary ? ': ' + saved.summary : '');
+    const st = OC.stats.get(id);
+    const sel = optsFor(def);
+    const statTxt = st.played ? `Won ${st.won} of ${st.played} · best streak ${st.best}` : 'Not played yet';
+    const html = `<div class="panel-top"><div class="tile-art">${OC.mini(def.preview)}</div>
+        <div><p>${OC.esc(def.blurb)}</p><p class="note">${OC.esc(def.players)} · ${statTxt}</p></div></div>
+      ${progress ? `<div class="panel-progress">▶ ${OC.esc(progress)}</div>` : ''}
+      ${def.options && def.options.length ? `<h3 class="panel-h">${resumable ? 'Options for a new game' : 'Options'}</h3>${optionChips(def, sel)}` : ''}`;
+    const buttons = [{ label: 'How to play', value: 'learn' }, { label: resumable ? 'New game' : 'Play', value: 'new', primary: !resumable }];
+    if (resumable) buttons.push({ label: 'Continue', value: 'continue', primary: true });
+    const p = OC.ui.dialog({ title: def.name, html, buttons, cls: 'game-panel' });
+    wireChips(OC.ui._lastDialog, sel);
+    const v = await p;
+    if (v === 'learn') return OC.ui.tutorial(def, () => gamePanel(id));
+    if (v === 'continue') return launch(id, 'continue');
+    if (v === 'new') {
+      if (resumable) {
+        const ok = await OC.ui.dialog({
+          title: 'Start a new game?',
+          html: `<p>Your ${live ? 'paused' : 'saved'} ${OC.esc(def.name)} game will be thrown away and count as a loss.</p>`,
+          buttons: [{ label: 'Cancel', value: false }, { label: 'New game', value: true, primary: true }],
+        });
+        if (!ok) return gamePanel(id);
+      }
+      OC.store.set('opts.' + id, sel);
+      launch(id, 'new', sel);
+    }
   }
 
   function showScreen(id) {
@@ -61,72 +123,156 @@
     return o;
   }
 
-  function openGame(id) {
-    const def = games.find((g) => g.id === id);
-    if (!def) return;
-    closeGame(true);
-    showScreen('game-screen');
-    $('#game-title').textContent = def.name;
-    const board = $('#board');
-    board.innerHTML = '';
+  const sessions = {}; // game id -> session (kept while a game is paused)
+
+  function createSession(def, opts) {
+    const board = document.createElement('div');
     board.className = 'board g-' + def.id;
+    $('#boards').appendChild(board);
     const table = new OC.Table(board);
-    let alive = true;
+    const sess = { def, board, ui: { status: '', buttons: [], actions: [] }, alive: true, suspended: false, started: false };
+    const isCur = () => current === sess;
     const ctx = {
       def,
       board,
       table,
-      opts: optsFor(def),
-      alive: () => alive,
-      wait: (ms) => new Promise((res) => setTimeout(() => { if (alive) res(); }, OC.pace(ms))),
-      status(html) { $('#game-status').innerHTML = html; },
-      buttons(list) { setTopButtons(list); },
-      actions(list) { setActions(list); },
-      toast: OC.ui.toast,
-      dialog: OC.ui.dialog,
+      opts,
+      alive: () => sess.alive,
+      // Computer turns pause while the game is paused, and continue when you come back.
+      wait: (ms) => new Promise((res) => {
+        const tick = () => {
+          if (!sess.alive) return;
+          if (sess.suspended) return setTimeout(tick, 150);
+          res();
+        };
+        setTimeout(tick, OC.pace(ms));
+      }),
+      status(html) { sess.ui.status = html; if (isCur()) $('#game-status').innerHTML = html; },
+      buttons(list) { sess.ui.buttons = list; if (isCur()) setTopButtons(list); },
+      actions(list) { sess.ui.actions = list; if (isCur()) setActions(list); },
+      toast: (msg, ms) => { if (isCur()) OC.ui.toast(msg, ms); },
+      // never pop a game's dialog over the menu: wait until the game is on screen again
+      dialog: async (o) => {
+        while (sess.alive && sess.suspended) await OC.sleep(150);
+        return OC.ui.dialog(o);
+      },
       record(won) { return OC.stats.record(def.id, won); },
       /** Standard end-of-game dialog. */
       async finish({ won, title, html = '', record = true }) {
+        OC.store.set('save.' + def.id, null);
         let st = null;
         if (record) st = OC.stats.record(def.id, won);
         if (won) celebrate();
         const statLine = st ? `<p class="statline">Won ${st.won} of ${st.played} · current streak ${st.streak} · best ${st.best}</p>` : '';
-        const v = await OC.ui.dialog({
+        const v = await ctx.dialog({
           title: title || (won ? 'You won!' : 'Game over'),
           html: html + statLine,
           buttons: [{ label: 'Menu', value: 'menu' }, { label: 'Play again', value: 'again', primary: true }],
         });
-        if (!alive) return;
+        if (!sess.alive) return;
         if (v === 'menu') goHome();
-        else if (v === 'again') inst.start();
+        else if (v === 'again') guard(() => sess.inst.start(), sess);
       },
     };
-    const inst = def.create(ctx);
-    current = { def, inst, ctx, kill: () => { alive = false; } };
-    setActions([]);
-    setTopButtons([]);
-    ctx.status('');
+    sess.ctx = ctx;
+    sess.inst = def.create(ctx);
+    sessions[def.id] = sess;
+    return sess;
+  }
+
+  /** Run game code; if it throws, keep the app alive and tell the player. */
+  function guard(fn, sess) {
+    try {
+      return fn();
+    } catch (e) {
+      console.error(e);
+      OC.ui.toast('Something went wrong — try starting a new game');
+      return undefined;
+    }
+  }
+
+  function showSession(sess) {
+    current = sess;
+    showScreen('game-screen');
+    $('#game-title').textContent = sess.def.name;
+    for (const b of $('#boards').children) b.style.display = b === sess.board ? '' : 'none';
+    setTopButtons(sess.ui.buttons);
+    setActions(sess.ui.actions);
+    $('#game-status').innerHTML = sess.ui.status;
+  }
+
+  function destroySession(sess, abandon) {
+    if (abandon && sess.started && isInProgress(sess)) OC.stats.record(sess.def.id, false);
+    sess.alive = false;
+    try { if (sess.inst.destroy) sess.inst.destroy(); } catch (e) { console.error(e); }
+    sess.board.remove();
+    if (sessions[sess.def.id] === sess) delete sessions[sess.def.id];
+    if (current === sess) current = null;
+  }
+
+  /** Open a game: mode 'continue' resumes a paused/saved game, 'new' deals a fresh one. */
+  function launch(id, mode, opts) {
+    const def = games.find((g) => g.id === id);
+    if (!def) return;
+    let sess = sessions[id];
+    if (mode === 'continue' && sess && sess.started && isInProgress(sess)) {
+      sess.suspended = false;
+      showSession(sess);
+      guard(() => sess.inst.resume && sess.inst.resume(), sess);
+      requestAnimationFrame(() => sess.alive && guard(() => sess.inst.render && sess.inst.render(), sess));
+      return;
+    }
+    const saved = mode === 'continue' && !sess ? OC.store.get('save.' + id, null) : null;
+    const hadSession = !!sess;
+    if (sess) destroySession(sess, true); // counts the loss if it was in progress
+    if (mode === 'new' && OC.store.get('save.' + id, null)) {
+      // a game saved from an earlier session (not open now) is being abandoned
+      if (!hadSession) OC.stats.record(id, false);
+      OC.store.set('save.' + id, null);
+    }
+    sess = createSession(def, saved && saved.opts ? saved.opts : opts || optsFor(def));
+    showSession(sess);
     requestAnimationFrame(() => {
-      if (!alive) return;
-      current.started = true;
-      inst.start();
+      if (!sess.alive) return;
+      sess.started = true;
+      try {
+        if (saved && sess.inst.restore) sess.inst.restore(saved);
+        else sess.inst.start();
+      } catch (e) {
+        console.error(e);
+        OC.store.set('save.' + id, null);
+        try {
+          sess.inst.start();
+          OC.ui.toast('That saved game couldn’t be restored, so here’s a new deal');
+        } catch (e2) {
+          console.error(e2);
+          destroySession(sess);
+          goHome();
+          OC.ui.toast('Sorry, this game couldn’t start');
+        }
+      }
     });
   }
-
-  function closeGame(silent) {
-    if (!current) return;
-    const { inst, def, kill } = current;
-    if (inst.inProgress && inst.inProgress()) OC.stats.record(def.id, false);
-    kill();
-    if (inst.destroy) inst.destroy();
-    current = null;
-    $('#board').innerHTML = '';
-    if (!silent) renderHome();
+  /** Kept for older callers: open a game, continuing it if possible. */
+  function openGame(id) {
+    launch(id, canContinue(id) ? 'continue' : 'new');
   }
 
+  /** Leave the game screen. A game still in progress is paused, not thrown away. */
   function goHome() {
-    closeGame();
+    const sess = current;
+    if (sess) {
+      if (sess.started && isInProgress(sess)) {
+        sess.suspended = true;
+        guard(() => sess.inst.suspend && sess.inst.suspend(), sess);
+        sess.board.style.display = 'none';
+      } else {
+        destroySession(sess);
+      }
+      current = null;
+    }
     showScreen('home-screen');
+    renderHome();
   }
 
   function setTopButtons(list) {
@@ -166,7 +312,7 @@
       btn.onclick = () => b.onClick();
       bar.appendChild(btn);
     }
-    if (current && current.started && current.inst.render) requestAnimationFrame(() => current && current.started && current.inst.render());
+    if (current && current.started && current.inst.render) requestAnimationFrame(() => current && current.started && guard(() => current.inst.render()));
   }
 
   async function newGameClicked() {
@@ -186,29 +332,21 @@
       if (!v) return;
     }
     if (current !== null && current.inst === inst) {
-      if (inst.inProgress && inst.inProgress()) OC.stats.record(def.id, false);
-      inst.start();
+      // Start from a fresh game object: any animation or computer turn still running in the
+      // old one is stopped cleanly instead of carrying on into the new game.
+      OC.store.set('save.' + def.id, null);
+      launch(def.id, 'new', ctx.opts); // counts the old game as a loss if it was in progress
     }
   }
 
   function optionsDialog(def, opts) {
     const sel = Object.assign({}, opts);
-    const html = def.options.map((o) => `<div class="opt-row"><label>${o.label}</label><div class="chips" data-key="${o.key}">${
-      o.choices.map(([v, l]) => `<button class="chip${sel[o.key] === v ? ' on' : ''}" data-v='${JSON.stringify(v)}'>${l}</button>`).join('')}</div></div>`).join('') +
-      '<p class="note">Starting a new game ends the current one.</p>';
     const p = OC.ui.dialog({
       title: 'New game',
-      html,
+      html: optionChips(def, sel) + '<p class="note">Starting a new game ends the current one.</p>',
       buttons: [{ label: 'Cancel', value: null }, { label: 'Deal', value: 'deal', primary: true }],
     });
-    const wrap = OC.ui._lastDialog;
-    wrap.querySelectorAll('.chips').forEach((row) => {
-      row.querySelectorAll('.chip').forEach((c) => (c.onclick = () => {
-        row.querySelectorAll('.chip').forEach((x) => x.classList.remove('on'));
-        c.classList.add('on');
-        sel[row.dataset.key] = JSON.parse(c.dataset.v);
-      }));
-    });
+    wireChips(OC.ui._lastDialog, sel);
     return p.then((v) => (v === 'deal' ? sel : null));
   }
 
@@ -309,6 +447,18 @@
   /* ------------------------------------------------------------------ */
   /* Boot                                                                */
   /* ------------------------------------------------------------------ */
+  // Last line of defence: report unexpected errors without breaking the app.
+  let lastErr = 0;
+  const onErr = (e) => {
+    console.error(e);
+    if (Date.now() - lastErr > 4000 && OC.ui && OC.ui.toast) {
+      lastErr = Date.now();
+      OC.ui.toast('Something went wrong \u2014 your games are still here');
+    }
+  };
+  window.addEventListener('error', (e) => onErr(e.error || e.message));
+  window.addEventListener('unhandledrejection', (e) => onErr(e.reason));
+
   function boot() {
     OC.applySettings();
     renderHome();
@@ -321,7 +471,7 @@
     let rt = null;
     window.addEventListener('resize', () => {
       clearTimeout(rt);
-      rt = setTimeout(() => current && current.started && current.inst.render && current.inst.render(), 80);
+      rt = setTimeout(() => current && current.started && current.inst.render && guard(() => current.inst.render()), 80);
     });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') OC.back();
@@ -329,6 +479,8 @@
     document.addEventListener('contextmenu', (e) => e.preventDefault());
   }
   OC.openGame = openGame;
+  OC.launch = launch;
+  OC.gamePanel = gamePanel;
   OC.current = () => current;
   OC.goHome = goHome;
   document.addEventListener('DOMContentLoaded', boot);

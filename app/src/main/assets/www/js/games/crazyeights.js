@@ -17,6 +17,9 @@
     inProgress() {
       return this.started && !this.over;
     }
+    progressText() {
+      return `${this.hands[0].length} cards left in your hand`;
+    }
     start() {
       this.T.clear();
       const nOpp = this.ctx.opts.opponents;

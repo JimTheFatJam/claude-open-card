@@ -24,6 +24,15 @@
         }
       }
     }
+    saveExtra() {
+      return { verified: this.verified, draw: this.draw };
+    }
+    onRestore(extra) {
+      this.draw = extra.draw || this.ctx.opts.draw || 1;
+      this.verified = !!extra.verified;
+      this.plan = null;
+      this.blockedKey = null;
+    }
     shuffleDeal() {
       const deck = OC.shuffle(OC.makeDeck());
       const s = { stock: [], waste: [], f: [[], [], [], []], t: [[], [], [], [], [], [], []], passes: 0 };

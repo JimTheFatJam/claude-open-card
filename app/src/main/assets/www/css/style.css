@@ -403,3 +403,17 @@ body.pixel .btn.top.music-btn.off::after { width: 16px; height: 16px; margin: -8
 .logo-pixel { display: none; width: 64px; height: 56px; image-rendering: pixelated; }
 body.pixel .logo-cards { display: none; }
 body.pixel .logo-pixel { display: block; }
+
+/* ---------- per-game tables & the game panel ---------- */
+#boards { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; }
+#boards > .board { flex: 1; }
+.tile-go { grid-row: 2; grid-column: 2; justify-self: end; align-self: end; font-size: 14px; opacity: 0.7; }
+.tile:focus-visible { outline: 3px solid var(--gold); }
+.tile-meta .rec.going { background: var(--gold); color: #222; }
+.game-panel .panel-top { display: flex; gap: 16px; align-items: center; margin-bottom: 8px; }
+.game-panel .panel-top .tile-art { flex: none; }
+.game-panel .panel-top p { margin: 0 0 6px; }
+.game-panel .panel-progress { background: rgba(255, 213, 79, 0.15); border-left: 4px solid var(--gold); padding: 8px 12px; margin: 6px 0 12px; }
+.game-panel .panel-h { font-size: 15px; margin: 12px 0 8px; }
+body.pixel .game-panel .panel-h { font-family: var(--px-font); font-size: 11px; font-weight: 400; }
+body.pixel .tile-go { font-family: var(--px-font); font-size: 12px; }

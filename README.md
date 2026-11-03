@@ -15,6 +15,9 @@ A free, offline collection of classic card games played with a standard 52-card 
 
 Features:
 - **How to play** tutorials for every game, available from the menu or the **?** button in a game
+- Tap any game to open its panel: options, **How to play**, **New game** and **Continue**
+- Leaving a game pauses it instead of ending it. Solitaire games are also saved on the device, so they survive closing the app
+- Klondike deals only winnable games by default, and its **Hint** follows a solver's winning line
 - Drag-and-drop or tap-to-move for solitaire games, plus unlimited **Undo** and **Hint**
 - Statistics per game (played, won, streaks)
 - Pixel (8-bit) look throughout: blocky cards, pixel-art suits and retro fonts
@@ -42,7 +45,8 @@ The pixel style uses the *Press Start 2P* and *VT323* fonts, both under the SIL 
   - `js/core.js` is the card model, table renderer, touch/drag input, dialogs, storage and poker hand evaluator.
   - `js/music.js` is the chiptune background music (Web Audio pulse/triangle/noise channels).
   - `js/app.js` is the menu, game screen, settings, statistics and back-button handling.
-  - `js/solitaire.js` is the shared undo/timer/hint base for the solitaire games.
+  - `js/solitaire.js` is the shared undo/timer/hint/save base for the solitaire games.
+  - `js/klondike-solver.js` is the Klondike solver behind winnable deals and hints.
   - `js/games/*.js` has one file per game, with its rules engine, computer AI and tutorial.
 - `app/src/main/java/com/opencard/app/MainActivity.java` is a small full-screen WebView wrapper.
 - `tools/make_icon.py` generates the pixel-art launcher icon and home-screen logo.
